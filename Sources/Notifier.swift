@@ -2,12 +2,20 @@ import UserNotifications
 
 enum ReviewEvent {
     case reviewRequested(PipelineStatus?)
+    case approvalRemoved(PipelineStatus?)
     case activity(PipelineStatus?)
     case pipelineFixed
 
+    init(_ announcement: SeenStore.Announcement, pipeline: PipelineStatus?) {
+        switch announcement {
+        case .reviewRequested: self = .reviewRequested(pipeline)
+        case .approvalRemoved: self = .approvalRemoved(pipeline)
+        }
+    }
+
     var pipeline: PipelineStatus? {
         switch self {
-        case .reviewRequested(let status), .activity(let status): return status
+        case .reviewRequested(let status), .approvalRemoved(let status), .activity(let status): return status
         case .pipelineFixed: return .success
         }
     }
@@ -16,6 +24,7 @@ enum ReviewEvent {
         let badge = pipeline.map { "\($0.emoji) " } ?? ""
         switch self {
         case .reviewRequested: return badge + "Review requested"
+        case .approvalRemoved: return badge + "Your approval was removed"
         case .activity: return badge + "Merge request updated"
         case .pipelineFixed: return badge + "Pipeline fixed"
         }

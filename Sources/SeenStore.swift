@@ -8,8 +8,14 @@ struct SeenStore: Codable {
     struct ReviewState: Codable {
         let updatedAt: String
         let pipeline: String?
-        /// Still owed its "Review requested" notification, waiting to meet the notification gate.
-        let isHeld: Bool
+        let isApprovedByReviewer: Bool
+        /// A notification still owed, waiting for the merge request to meet the notification gate.
+        let held: Announcement?
+    }
+
+    enum Announcement: String, Codable {
+        case reviewRequested
+        case approvalRemoved
     }
 
     static func load() -> SeenStore {

@@ -27,6 +27,7 @@ if [[ ! -f "$CONFIG_DIR/config.json" ]]; then
   "username": "$username",
   "pollIntervalSeconds": 60,
   "notifyOnNewReviewRequest": true,
+  "notifyOnApprovalRemoved": true,
   "notifyOnPipelineFixed": true,
   "notifyOnActivity": false,
   "notifyBacklogOnFirstRun": false,

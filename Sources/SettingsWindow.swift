@@ -57,6 +57,7 @@ private struct SettingsView: View {
 
             Section("Notify me when") {
                 Toggle("I'm asked to review a merge request", isOn: $settings.config.notifyOnNewReviewRequest)
+                Toggle("New commits remove my approval", isOn: $settings.config.notifyOnApprovalRemoved)
                 Toggle("A pipeline that was failing passes", isOn: $settings.config.notifyOnPipelineFixed)
                 Toggle("A merge request I review gets commits or comments", isOn: $settings.config.notifyOnActivity)
                 Toggle("Requests are already waiting when the watcher starts", isOn: $settings.config.notifyBacklogOnFirstRun)
@@ -74,8 +75,8 @@ private struct SettingsView: View {
                 Text("Only when the merge request")
             } footer: {
                 Text("""
-                    A review request that does not qualify yet notifies as soon as it does, unless you approved it \
-                    first. A merge request without a pipeline passes the pipeline check.
+                    A review request or removed approval that does not qualify yet notifies as soon as it does, \
+                    unless you approve first. A merge request without a pipeline passes the pipeline check.
                     """)
                     .foregroundStyle(.secondary)
             }

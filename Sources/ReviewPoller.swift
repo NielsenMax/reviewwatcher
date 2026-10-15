@@ -88,9 +88,12 @@ final class ReviewPoller {
             if let event = decision.event {
                 events.append((mergeRequest, event))
             }
-            current[mergeRequest.key] = SeenStore.ReviewState(updatedAt: mergeRequest.updatedAt,
-                                                              pipeline: mergeRequest.pipeline?.rawValue,
-                                                              isHeld: decision.isHeld)
+            current[mergeRequest.key] = SeenStore.ReviewState(
+                updatedAt: mergeRequest.updatedAt,
+                pipeline: mergeRequest.pipeline?.rawValue,
+                isApprovedByReviewer: mergeRequest.isApproved(by: config.username),
+                held: decision.held
+            )
         }
 
         // Rebuilding the map rather than merging drops merged and closed merge requests.
@@ -103,25 +106,40 @@ final class ReviewPoller {
         return events
     }
 
-    /// A new or held review request is announced once it passes the gate, unless the reviewer approved it
-    /// meanwhile; one already announced speaks up again only for a fixed pipeline or fresh activity.
+    /// A review request, or a review whose approval GitLab removed, owes one announcement. It is made once
+    /// the merge request passes the gate and dropped if the reviewer approves first. Otherwise a review speaks
+    /// up again only for a fixed pipeline or fresh activity.
     private func decide(_ mergeRequest: MergeRequest,
-                        previous: SeenStore.ReviewState?) -> (event: ReviewEvent?, isHeld: Bool) {
+                        previous: SeenStore.ReviewState?) -> (event: ReviewEvent?, held: SeenStore.Announcement?) {
         let isAdmitted = config.notifyOnlyWhen.admits(mergeRequest)
-        guard let previous, !previous.isHeld else {
-            let isOwed = config.notifyOnNewReviewRequest
-                && (previous != nil || store.seeded || config.notifyBacklogOnFirstRun)
-                && !mergeRequest.isApproved(by: config.username)
-            return (isOwed && isAdmitted ? .reviewRequested(mergeRequest.pipeline) : nil, isOwed && !isAdmitted)
+        if let owed = owedAnnouncement(mergeRequest, previous: previous) {
+            guard !mergeRequest.isApproved(by: config.username) else { return (nil, nil) }
+            return isAdmitted ? (ReviewEvent(owed, pipeline: mergeRequest.pipeline), nil) : (nil, owed)
         }
-        guard isAdmitted else { return (nil, false) }
+        guard isAdmitted, let previous else { return (nil, nil) }
         if config.notifyOnPipelineFixed,
            previous.pipeline == PipelineStatus.failed.rawValue, mergeRequest.pipeline == .success {
-            return (.pipelineFixed, false)
+            return (.pipelineFixed, nil)
         }
         if config.notifyOnActivity, previous.updatedAt != mergeRequest.updatedAt {
-            return (.activity(mergeRequest.pipeline), false)
+            return (.activity(mergeRequest.pipeline), nil)
         }
-        return (nil, false)
+        return (nil, nil)
+    }
+
+    private func owedAnnouncement(_ mergeRequest: MergeRequest,
+                                  previous: SeenStore.ReviewState?) -> SeenStore.Announcement? {
+        let owed: SeenStore.Announcement?
+        if let previous {
+            let lostApproval = previous.isApprovedByReviewer && !mergeRequest.isApproved(by: config.username)
+            owed = previous.held ?? (lostApproval ? .approvalRemoved : nil)
+        } else {
+            owed = store.seeded || config.notifyBacklogOnFirstRun ? .reviewRequested : nil
+        }
+        switch owed {
+        case .reviewRequested: return config.notifyOnNewReviewRequest ? owed : nil
+        case .approvalRemoved: return config.notifyOnApprovalRemoved ? owed : nil
+        case nil: return nil
+        }
     }
 }

@@ -5,6 +5,7 @@ struct Config {
     var username: String
     var pollInterval: TimeInterval
     var notifyOnNewReviewRequest: Bool
+    var notifyOnApprovalRemoved: Bool
     var notifyOnPipelineFixed: Bool
     var notifyOnActivity: Bool
     var notifyBacklogOnFirstRun: Bool
@@ -15,7 +16,8 @@ struct Config {
 extension Config: Codable {
     private enum CodingKeys: String, CodingKey {
         case host, username, pollIntervalSeconds
-        case notifyOnNewReviewRequest, notifyOnPipelineFixed, notifyOnActivity, notifyBacklogOnFirstRun
+        case notifyOnNewReviewRequest, notifyOnApprovalRemoved, notifyOnPipelineFixed, notifyOnActivity
+        case notifyBacklogOnFirstRun
         case notifyOnlyWhen, collapsedFilePatterns
     }
 
@@ -27,6 +29,7 @@ extension Config: Codable {
         let seconds = try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? 60
         pollInterval = TimeInterval(max(30, seconds))
         notifyOnNewReviewRequest = try container.decodeIfPresent(Bool.self, forKey: .notifyOnNewReviewRequest) ?? true
+        notifyOnApprovalRemoved = try container.decodeIfPresent(Bool.self, forKey: .notifyOnApprovalRemoved) ?? true
         notifyOnPipelineFixed = try container.decodeIfPresent(Bool.self, forKey: .notifyOnPipelineFixed) ?? true
         notifyOnActivity = try container.decodeIfPresent(Bool.self, forKey: .notifyOnActivity) ?? false
         notifyBacklogOnFirstRun = try container.decodeIfPresent(Bool.self, forKey: .notifyBacklogOnFirstRun) ?? false
@@ -40,6 +43,7 @@ extension Config: Codable {
         try container.encode(username, forKey: .username)
         try container.encode(Int(pollInterval), forKey: .pollIntervalSeconds)
         try container.encode(notifyOnNewReviewRequest, forKey: .notifyOnNewReviewRequest)
+        try container.encode(notifyOnApprovalRemoved, forKey: .notifyOnApprovalRemoved)
         try container.encode(notifyOnPipelineFixed, forKey: .notifyOnPipelineFixed)
         try container.encode(notifyOnActivity, forKey: .notifyOnActivity)
         try container.encode(notifyBacklogOnFirstRun, forKey: .notifyBacklogOnFirstRun)

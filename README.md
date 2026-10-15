@@ -39,14 +39,15 @@ badge attachment plus an emoji in the title.
 | Asked to review, pipeline red | 🔴 Review requested |
 | Asked to review, pipeline still running or absent | 🟡 Review requested |
 | A merge request you were shown red turns green | 🟢 Pipeline fixed |
+| New commits removed your approval | 🟡 Your approval was removed |
 
 A pipeline breaking raises nothing: the only follow-up is the one that tells you
 a blocked review is now worth opening.
 
 Notifications can also wait for the merge request to be worth opening: a passed
 (or at least not failed) pipeline, no conflicts, not a draft. A review request
-that misses a condition is held and announced as soon as it meets them, unless
-you approved it in the meantime. A merge request without a pipeline passes the
+or removed approval that misses a condition is held and announced as soon as it
+meets them, unless you approve in the meantime. A merge request without a pipeline passes the
 pipeline condition. These conditions apply to every notification.
 
 Each poll is a single GraphQL query that returns the review requests together
@@ -112,6 +113,7 @@ apply at once and are saved to `~/.config/reviewwatcher/config.json`:
 | `username` | from `glab api user` | Whose review requests to watch. |
 | `pollIntervalSeconds` | `60` | Clamped to a 30s minimum. |
 | `notifyOnNewReviewRequest` | `true` | Ping when a merge request first lists you as reviewer. |
+| `notifyOnApprovalRemoved` | `true` | Ping when a merge request you approved loses your approval, as GitLab does on new commits when the project resets approvals on push. |
 | `notifyOnPipelineFixed` | `true` | Ping when a review you were shown red turns green. |
 | `notifyOnActivity` | `false` | Also ping when one you already review gets new commits or comments. |
 | `notifyBacklogOnFirstRun` | `false` | Announce the merge requests already waiting when the watcher first starts. |
