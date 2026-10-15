@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Review Watcher">
+  <defs>
+    <linearGradient id="badge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FC8A3A"/>
+      <stop offset="1" stop-color="#E24329"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#badge)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 22.5 V42.5"/>
+    <path d="M44 22.5 V30 c0 6 -5 10 -11 10 h-12"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="20" cy="18" r="4.5"/>
+    <circle cx="44" cy="18" r="4.5"/>
+    <circle cx="20" cy="47" r="4.5"/>
+  </g>
+</svg>
