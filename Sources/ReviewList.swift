@@ -57,7 +57,7 @@ final class ReviewList: ObservableObject {
     }
 
     func actions(for mergeRequest: MergeRequest) -> [ReviewAction] {
-        [ReviewAction.approve, .merge].filter { $0.isAvailable(on: mergeRequest, reviewer: username) }
+        [ReviewAction.approve, .unapprove, .merge].filter { $0.isAvailable(on: mergeRequest, reviewer: username) }
     }
 
     /// Merging is armed by the first click and fired by the second, so a list reshuffled by a refresh cannot merge the wrong row.

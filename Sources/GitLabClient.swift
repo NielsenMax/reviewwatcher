@@ -62,6 +62,10 @@ struct GitLabClient {
         _ = try runGlab(["api", "-X", "POST", "\(mergeRequest.apiPath)/approve"] + headPin(mergeRequest))
     }
 
+    func unapprove(_ mergeRequest: MergeRequest) throws {
+        _ = try runGlab(["api", "-X", "POST", "\(mergeRequest.apiPath)/unapprove"])
+    }
+
     /// Auto-merge merges at once when every check already passes, and otherwise waits on them.
     func merge(_ mergeRequest: MergeRequest) throws -> MergeOutcome {
         let arguments = ["api", "-X", "PUT", "\(mergeRequest.apiPath)/merge", "-F", "auto_merge=true"]

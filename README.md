@@ -66,14 +66,15 @@ Clicking it refreshes and opens the list:
 | 🔍 | Opens the diff in a window. Disabled past 2000 changed lines. |
 | 🧭 | Opens the merge request in the browser. |
 | **Approve** | Approves. Shown while you have not approved yet. |
+| **Unapprove** | Revokes your approval. Shown once you have approved. |
 | **Merge** | Merges, or turns on auto-merge when a check is still pending. Asks for a second click within four seconds. |
 
-**Merge** shows only when nothing but approvals or a running pipeline blocks the
-merge request: drafts, conflicts, unresolved threads and failed pipelines go
-through GitLab. It uses the merge request's own squash and branch-deletion
-settings.
+**Merge** shows only when nothing but approvals or a running check blocks the
+merge request: drafts, conflicts, unresolved threads and a failed pipeline the
+project requires to pass go through GitLab. It uses the merge request's own
+squash and branch-deletion settings.
 
-Both actions pin the commit the list was loaded at. If the author pushes after
+Approve and Merge pin the commit the list was loaded at. If the author pushes after
 that, GitLab rejects the action and the row shows the error; the next refresh
 shows the new state.
 
@@ -113,7 +114,7 @@ apply at once and are saved to `~/.config/reviewwatcher/config.json`:
 | `username` | from `glab api user` | Whose review requests to watch. |
 | `pollIntervalSeconds` | `60` | Clamped to a 30s minimum. |
 | `notifyOnNewReviewRequest` | `true` | Ping when a merge request first lists you as reviewer. |
-| `notifyOnApprovalRemoved` | `true` | Ping when a merge request you approved loses your approval, as GitLab does on new commits when the project resets approvals on push. |
+| `notifyOnApprovalRemoved` | `true` | Ping when new commits take away your approval, as GitLab does when the project resets approvals on push. Revoking it yourself stays quiet. |
 | `notifyOnPipelineFixed` | `true` | Ping when a review you were shown red turns green. |
 | `notifyOnActivity` | `false` | Also ping when one you already review gets new commits or comments. |
 | `notifyBacklogOnFirstRun` | `false` | Announce the merge requests already waiting when the watcher first starts. |

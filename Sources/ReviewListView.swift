@@ -147,7 +147,7 @@ struct ReviewActionButtons: View {
     @ViewBuilder
     private func button(for action: ReviewAction) -> some View {
         switch action {
-        case .approve:
+        case .approve, .unapprove:
             Button(action.title) { list.trigger(action, on: mergeRequest) }
                 .controlSize(.small)
         case .merge:

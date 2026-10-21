@@ -7,6 +7,8 @@ struct SeenStore: Codable {
 
     struct ReviewState: Codable {
         let updatedAt: String
+        /// Nil in state written before the head was tracked.
+        let headSHA: String?
         let pipeline: String?
         let isApprovedByReviewer: Bool
         /// A notification still owed, waiting for the merge request to meet the notification gate.

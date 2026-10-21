@@ -90,6 +90,7 @@ final class ReviewPoller {
             }
             current[mergeRequest.key] = SeenStore.ReviewState(
                 updatedAt: mergeRequest.updatedAt,
+                headSHA: mergeRequest.headSHA,
                 pipeline: mergeRequest.pipeline?.rawValue,
                 isApprovedByReviewer: mergeRequest.isApproved(by: config.username),
                 held: decision.held
@@ -131,7 +132,9 @@ final class ReviewPoller {
                                   previous: SeenStore.ReviewState?) -> SeenStore.Announcement? {
         let owed: SeenStore.Announcement?
         if let previous {
-            let lostApproval = previous.isApprovedByReviewer && !mergeRequest.isApproved(by: config.username)
+            // GitLab drops approvals on push; an approval lost on an unmoved head is the reviewer's own revocation.
+            let hasNewCommits = previous.headSHA.map { $0 != mergeRequest.headSHA } ?? true
+            let lostApproval = previous.isApprovedByReviewer && !mergeRequest.isApproved(by: config.username) && hasNewCommits
             owed = previous.held ?? (lostApproval ? .approvalRemoved : nil)
         } else {
             owed = store.seeded || config.notifyBacklogOnFirstRun ? .reviewRequested : nil

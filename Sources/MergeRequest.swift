@@ -49,10 +49,12 @@ struct MergeRequest: Identifiable {
         approvers.contains(username)
     }
 
-    /// Only approvals or a pipeline that may still pass stand in the way; auto-merge waits those out.
+    /// Only approvals, checks still running or a pipeline that may still pass stand in the way; auto-merge waits
+    /// those out. A failed pipeline blocks only where the project requires it to pass, which GitLab reports as CI_MUST_PASS.
     var isQuickMergeable: Bool {
-        guard !isAutoMergeEnabled, pipeline != .failed, let mergeStatus else { return false }
-        return ["MERGEABLE", "NOT_APPROVED", "CI_STILL_RUNNING", "CI_MUST_PASS",
+        guard !isAutoMergeEnabled, let mergeStatus else { return false }
+        if mergeStatus == "CI_MUST_PASS" { return pipeline != .failed }
+        return ["MERGEABLE", "NOT_APPROVED", "CI_STILL_RUNNING",
                 "CHECKING", "UNCHECKED", "APPROVALS_SYNCING"].contains(mergeStatus)
     }
 
@@ -119,9 +121,12 @@ extension MergeRequest: Decodable {
             .map { PipelineStatus(gitlabStatus: $0.status) }
         diffStats = try container.decodeIfPresent(DiffStats.self, forKey: .diffStats)
         approvers = try container.decode(Approvers.self, forKey: .approvedBy).nodes.map(\.username)
-        mergeStatus = try container.decodeIfPresent(String.self, forKey: .mergeStatus)
         isAutoMergeEnabled = try container.decode(Bool.self, forKey: .autoMergeEnabled)
         hasConflicts = try container.decode(Bool.self, forKey: .hasConflicts)
+        // GitLab names the first check that has not passed, and its conflict check, run last, reports CONFLICT
+        // while still checking too; `conflicts` carries the finished verdict.
+        let detailedStatus = try container.decodeIfPresent(String.self, forKey: .mergeStatus)
+        mergeStatus = detailedStatus == "CONFLICT" && !hasConflicts ? "CHECKING" : detailedStatus
         isDraft = try container.decode(Bool.self, forKey: .isDraft)
         let permissions = try container.decode(Permissions.self, forKey: .userPermissions)
         canMerge = permissions.canMerge
