@@ -4,6 +4,10 @@ struct MergeRequest: Identifiable {
     let iid: String
     let projectID: Int
     let projectPath: String
+    let sourceBranch: String
+    let targetBranch: String
+    /// Nil once a fork the merge request came from is deleted.
+    let sourceProjectID: Int?
     let title: String
     let webURL: String
     let updatedAt: String
@@ -83,6 +87,8 @@ extension MergeRequest: Decodable {
         case isDraft = "draft"
         case webURL = "webUrl"
         case projectID = "projectId"
+        case sourceProjectID = "sourceProjectId"
+        case sourceBranch, targetBranch
         case updatedAt
         case headSHA = "diffHeadSha"
         case headPipeline
@@ -112,6 +118,9 @@ extension MergeRequest: Decodable {
         iid = try container.decode(String.self, forKey: .iid)
         projectID = try container.decode(Int.self, forKey: .projectID)
         projectPath = try container.decode(Project.self, forKey: .project).fullPath
+        sourceBranch = try container.decode(String.self, forKey: .sourceBranch)
+        targetBranch = try container.decode(String.self, forKey: .targetBranch)
+        sourceProjectID = try container.decodeIfPresent(Int.self, forKey: .sourceProjectID)
         title = try container.decode(String.self, forKey: .title)
         webURL = try container.decode(String.self, forKey: .webURL)
         updatedAt = try container.decode(String.self, forKey: .updatedAt)

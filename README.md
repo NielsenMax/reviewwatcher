@@ -40,6 +40,7 @@ badge attachment plus an emoji in the title.
 | Asked to review, pipeline still running or absent | 🟡 Review requested |
 | A merge request you were shown red turns green | 🟢 Pipeline fixed |
 | New commits removed your approval | 🟡 Your approval was removed |
+| The watcher approved one for you | 🟢 Auto-approved release / version bump |
 
 A pipeline breaking raises nothing: the only follow-up is the one that tells you
 a blocked review is now worth opening.
@@ -48,7 +49,8 @@ Notifications can also wait for the merge request to be worth opening: a passed
 (or at least not failed) pipeline, no conflicts, not a draft. A review request
 or removed approval that misses a condition is held and announced as soon as it
 meets them, unless you approve in the meantime. A merge request without a pipeline passes the
-pipeline condition. These conditions apply to every notification.
+pipeline condition. These conditions apply to every notification except an
+auto-approval, which always notifies.
 
 Each poll is a single GraphQL query that returns the review requests together
 with their pipeline, diff size, approvals and merge status.
@@ -78,6 +80,24 @@ Approve and Merge pin the commit the list was loaded at. If the author pushes af
 that, GitLab rejects the action and the row shows the error; the next refresh
 shows the new state.
 
+## Auto-approval
+
+Two kinds of merge request can be approved without opening them, each behind its
+own setting, both off by default:
+
+- **Releases**: from `develop` into `main` or `master`, within the same project.
+- **Version bumps**: every changed file is an existing YAML file, and every
+  changed line is a kustomize `newTag:` or a container `image:` that keeps its
+  key, indentation and image, moving the tag to a version such as `1.2.3`,
+  `v1.2.3` or `1.2.3-rc.1`. A tag like `"1801"`, a digest, a new or renamed
+  image, a reformatted file or any other line in the diff leaves the merge
+  request to you.
+
+Drafts are never auto-approved. The approval pins the commit that was checked,
+so a push that lands meanwhile is rejected by GitLab and checked again on the
+next poll. Each head is judged once: if you revoke an auto-approval, it stays
+revoked until new commits arrive.
+
 ## Diff window
 
 Each file is a card whose header stays pinned while you scroll through it.
@@ -105,8 +125,9 @@ The window takes ⌘W to close and ⌘C to copy a selected line.
 ## Configuration
 
 The gear in the popover opens the settings: polling interval, which events
-notify, the conditions above, and the diff window's collapse patterns. Changes
-apply at once and are saved to `~/.config/reviewwatcher/config.json`:
+notify, the conditions above, auto-approval, and the diff window's collapse
+patterns. Changes apply at once and are saved to
+`~/.config/reviewwatcher/config.json`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -121,6 +142,8 @@ apply at once and are saved to `~/.config/reviewwatcher/config.json`:
 | `notifyOnlyWhen.pipeline` | `"any"` | `"any"`, `"notFailed"` or `"passed"`. |
 | `notifyOnlyWhen.noConflicts` | `false` | Hold merge requests with conflicts. |
 | `notifyOnlyWhen.notDraft` | `false` | Hold drafts. |
+| `autoApproveReleases` | `false` | Approve releases from `develop`; see [Auto-approval](#auto-approval). |
+| `autoApproveVersionBumps` | `false` | Approve merge requests that only bump image tags. |
 | `collapsedFilePatterns` | `["*test*", "*spec/*"]` | Files the diff window opens collapsed; see [Diff window](#diff-window). |
 
 `host` and `username` are set by `install.sh` and shown read-only in the settings.

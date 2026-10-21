@@ -82,6 +82,20 @@ private struct SettingsView: View {
             }
 
             Section {
+                Toggle("Releases from develop to main or master", isOn: $settings.config.autoApproveReleases)
+                Toggle("Version bumps in Kubernetes manifests", isOn: $settings.config.autoApproveVersionBumps)
+            } header: {
+                Text("Approve automatically")
+            } footer: {
+                Text("""
+                    A version bump changes nothing but kustomize newTag or container image lines in YAML files, \
+                    each to a version like 1.2.3 in the same image. Drafts are left alone, every approval notifies, \
+                    and one you revoke stays revoked until new commits arrive.
+                    """)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 TextEditor(text: $settings.collapsedPatternsText)
                     .font(.system(size: 12, design: .monospaced))
                     .frame(height: 64)

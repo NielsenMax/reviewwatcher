@@ -11,6 +11,8 @@ struct SeenStore: Codable {
         let headSHA: String?
         let pipeline: String?
         let isApprovedByReviewer: Bool
+        /// The head this watcher approved on its own, which it never approves again.
+        let autoApprovedHead: String?
         /// A notification still owed, waiting for the merge request to meet the notification gate.
         let held: Announcement?
     }

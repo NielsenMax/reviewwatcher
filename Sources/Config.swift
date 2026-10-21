@@ -10,6 +10,8 @@ struct Config {
     var notifyOnActivity: Bool
     var notifyBacklogOnFirstRun: Bool
     var notifyOnlyWhen: NotificationGate
+    var autoApproveReleases: Bool
+    var autoApproveVersionBumps: Bool
     var collapsedFilePatterns: [String]
 }
 
@@ -18,7 +20,7 @@ extension Config: Codable {
         case host, username, pollIntervalSeconds
         case notifyOnNewReviewRequest, notifyOnApprovalRemoved, notifyOnPipelineFixed, notifyOnActivity
         case notifyBacklogOnFirstRun
-        case notifyOnlyWhen, collapsedFilePatterns
+        case notifyOnlyWhen, autoApproveReleases, autoApproveVersionBumps, collapsedFilePatterns
     }
 
     init(from decoder: Decoder) throws {
@@ -34,6 +36,8 @@ extension Config: Codable {
         notifyOnActivity = try container.decodeIfPresent(Bool.self, forKey: .notifyOnActivity) ?? false
         notifyBacklogOnFirstRun = try container.decodeIfPresent(Bool.self, forKey: .notifyBacklogOnFirstRun) ?? false
         notifyOnlyWhen = try container.decodeIfPresent(NotificationGate.self, forKey: .notifyOnlyWhen) ?? NotificationGate()
+        autoApproveReleases = try container.decodeIfPresent(Bool.self, forKey: .autoApproveReleases) ?? false
+        autoApproveVersionBumps = try container.decodeIfPresent(Bool.self, forKey: .autoApproveVersionBumps) ?? false
         collapsedFilePatterns = try container.decodeIfPresent([String].self, forKey: .collapsedFilePatterns) ?? ["*test*", "*spec/*"]
     }
 
@@ -48,6 +52,8 @@ extension Config: Codable {
         try container.encode(notifyOnActivity, forKey: .notifyOnActivity)
         try container.encode(notifyBacklogOnFirstRun, forKey: .notifyBacklogOnFirstRun)
         try container.encode(notifyOnlyWhen, forKey: .notifyOnlyWhen)
+        try container.encode(autoApproveReleases, forKey: .autoApproveReleases)
+        try container.encode(autoApproveVersionBumps, forKey: .autoApproveVersionBumps)
         try container.encode(collapsedFilePatterns, forKey: .collapsedFilePatterns)
     }
 

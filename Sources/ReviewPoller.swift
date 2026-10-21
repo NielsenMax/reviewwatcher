@@ -10,6 +10,8 @@ final class ReviewPoller {
     private let queue = DispatchQueue(label: "app.reviewwatcher.poll")
     private var timer: DispatchSourceTimer?
     private var isPaused = false
+    /// Heads found not to qualify under the current auto-approve settings, by merge request key.
+    private var unqualifiedHeads: [String: String] = [:]
 
     init(config: Config, client: GitLabClient, notifier: Notifier, list: ReviewList) {
         self.config = config
@@ -55,6 +57,10 @@ final class ReviewPoller {
         queue.async { [weak self] in
             guard let self else { return }
             let isNewInterval = newConfig.pollInterval != config.pollInterval
+            if newConfig.autoApproveReleases != config.autoApproveReleases
+                || newConfig.autoApproveVersionBumps != config.autoApproveVersionBumps {
+                unqualifiedHeads = [:]
+            }
             config = newConfig
             guard isNewInterval, let timer, !isPaused else { return }
             timer.schedule(deadline: .now() + newConfig.pollInterval, repeating: newConfig.pollInterval)
@@ -68,9 +74,13 @@ final class ReviewPoller {
 
     private func poll() {
         do {
-            let open = try client.openReviewRequests(username: config.username)
+            var open = try client.openReviewRequests(username: config.username)
+            let autoApproved = autoApprove(open)
+            if !autoApproved.isEmpty {
+                open = try client.openReviewRequests(username: config.username)
+            }
             list.show(open)
-            for (mergeRequest, event) in reconcile(open) {
+            for (mergeRequest, event) in reconcile(open, autoApproved: autoApproved) {
                 Log.write("\(event.headline): \(mergeRequest.label)")
                 notifier.post(mergeRequest, event: event)
             }
@@ -80,11 +90,15 @@ final class ReviewPoller {
         }
     }
 
-    private func reconcile(_ open: [MergeRequest]) -> [(MergeRequest, ReviewEvent)] {
+    private func reconcile(_ open: [MergeRequest],
+                           autoApproved: [String: AutoApprovedHead]) -> [(MergeRequest, ReviewEvent)] {
         var events: [(MergeRequest, ReviewEvent)] = []
         var current: [String: SeenStore.ReviewState] = [:]
         for mergeRequest in open {
-            let decision = decide(mergeRequest, previous: store.reviews[mergeRequest.key])
+            let previous = store.reviews[mergeRequest.key]
+            let approval = autoApproved[mergeRequest.key]
+            let decision = approval.map { (event: ReviewEvent.autoApproved($0.reason, mergeRequest.pipeline), held: nil) }
+                ?? decide(mergeRequest, previous: previous)
             if let event = decision.event {
                 events.append((mergeRequest, event))
             }
@@ -93,6 +107,7 @@ final class ReviewPoller {
                 headSHA: mergeRequest.headSHA,
                 pipeline: mergeRequest.pipeline?.rawValue,
                 isApprovedByReviewer: mergeRequest.isApproved(by: config.username),
+                autoApprovedHead: approval?.head ?? previous?.autoApprovedHead,
                 held: decision.held
             )
         }
@@ -105,6 +120,43 @@ final class ReviewPoller {
             Log.write("could not persist state to \(Paths.stateFile.path): \(error.localizedDescription)")
         }
         return events
+    }
+
+    /// Each head is judged once: an approval the reviewer revokes stays revoked until new commits arrive.
+    private func autoApprove(_ open: [MergeRequest]) -> [String: AutoApprovedHead] {
+        guard config.autoApproveReleases || config.autoApproveVersionBumps else { return [:] }
+        var approved: [String: AutoApprovedHead] = [:]
+        for mergeRequest in open {
+            guard let head = mergeRequest.headSHA, !mergeRequest.isDraft,
+                  ReviewAction.approve.isAvailable(on: mergeRequest, reviewer: config.username),
+                  store.reviews[mergeRequest.key]?.autoApprovedHead != head,
+                  unqualifiedHeads[mergeRequest.key] != head else { continue }
+            do {
+                guard let reason = try qualification(of: mergeRequest, at: head) else {
+                    unqualifiedHeads[mergeRequest.key] = head
+                    continue
+                }
+                try client.approve(mergeRequest)
+                Log.write("Auto-approved \(reason.summary): \(mergeRequest.label)")
+                approved[mergeRequest.key] = AutoApprovedHead(reason: reason, head: head)
+            } catch {
+                Log.write("could not auto-approve \(mergeRequest.label): \(error.localizedDescription)")
+            }
+        }
+        return approved
+    }
+
+    /// A bump replaces each line it touches, so a diff adding more lines than it removes is ruled out unread.
+    private func qualification(of mergeRequest: MergeRequest, at head: String) throws -> AutoApproval? {
+        if config.autoApproveReleases, AutoApproval.isRelease(mergeRequest) { return .release }
+        guard config.autoApproveVersionBumps, let stats = mergeRequest.diffStats, stats.additions == stats.deletions else {
+            return nil
+        }
+        let version = try client.latestDiff(of: mergeRequest)
+        guard version.headSHA == head else {
+            throw WatcherError.setup("its newest diff is at \(version.headSHA.prefix(8)), its head at \(head.prefix(8))")
+        }
+        return AutoApproval.isVersionBump(version.files) ? .versionBump : nil
     }
 
     /// A review request, or a review whose approval GitLab removed, owes one announcement. It is made once
@@ -145,4 +197,9 @@ final class ReviewPoller {
         case nil: return nil
         }
     }
+}
+
+private struct AutoApprovedHead {
+    let reason: AutoApproval
+    let head: String
 }

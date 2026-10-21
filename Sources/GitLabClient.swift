@@ -88,6 +88,7 @@ struct GitLabClient {
             reviewRequestedMergeRequests(state: opened, first: 100, sort: UPDATED_DESC) {
               nodes {
                 iid title webUrl updatedAt projectId diffHeadSha
+                sourceBranch targetBranch sourceProjectId
                 project { fullPath }
                 author { username }
                 diffStatsSummary { additions deletions fileCount }

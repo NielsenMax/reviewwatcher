@@ -5,6 +5,7 @@ enum ReviewEvent {
     case approvalRemoved(PipelineStatus?)
     case activity(PipelineStatus?)
     case pipelineFixed
+    case autoApproved(AutoApproval, PipelineStatus?)
 
     init(_ announcement: SeenStore.Announcement, pipeline: PipelineStatus?) {
         switch announcement {
@@ -15,7 +16,8 @@ enum ReviewEvent {
 
     var pipeline: PipelineStatus? {
         switch self {
-        case .reviewRequested(let status), .approvalRemoved(let status), .activity(let status): return status
+        case .reviewRequested(let status), .approvalRemoved(let status), .activity(let status),
+             .autoApproved(_, let status): return status
         case .pipelineFixed: return .success
         }
     }
@@ -27,6 +29,7 @@ enum ReviewEvent {
         case .approvalRemoved: return badge + "Your approval was removed"
         case .activity: return badge + "Merge request updated"
         case .pipelineFixed: return badge + "Pipeline fixed"
+        case .autoApproved(let reason, _): return badge + "Auto-approved \(reason.summary)"
         }
     }
 }

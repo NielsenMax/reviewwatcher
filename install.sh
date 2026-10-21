@@ -32,6 +32,8 @@ if [[ ! -f "$CONFIG_DIR/config.json" ]]; then
   "notifyOnActivity": false,
   "notifyBacklogOnFirstRun": false,
   "notifyOnlyWhen": { "pipeline": "any", "noConflicts": false, "notDraft": false },
+  "autoApproveReleases": false,
+  "autoApproveVersionBumps": false,
   "collapsedFilePatterns": ["*test*", "*spec/*"]
 }
 JSON
