@@ -113,12 +113,8 @@ private struct SettingsView: View {
                 if settings.config.jira.isSetUp {
                     LabeledContent("Jira", value: settings.config.jira.site)
                     LabeledContent("You", value: settings.config.jira.email)
-                    HStack {
-                        TextField("Epic", text: $settings.epicDraft, prompt: Text("PROJ-123"))
-                            .onSubmit(settings.watchEpicDraft)
-                        Button("Watch", action: settings.watchEpicDraft)
-                            .disabled(!settings.isEpicDraftWatchable)
-                    }
+                    LabeledContent("Following", value: settings.config.jira.epics.isEmpty
+                                   ? "no epics" : settings.config.jira.epics.joined(separator: ", "))
                 } else {
                     Text("Log in with acli jira auth login, then run install.sh again.")
                         .foregroundStyle(.secondary)
@@ -127,8 +123,8 @@ private struct SettingsView: View {
                 Text("Epic tab")
             } footer: {
                 Text("""
-                    Watches the ticket, its children and their subtasks. Any key works: a story's branch is the \
-                    story and its subtasks. Site and user come from your acli login.
+                    Follow and close epics from the search box in the Epic tab. Each one brings its children and \
+                    their subtasks. Site and user come from your acli login.
                     """)
                     .foregroundStyle(.secondary)
             }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Watches the epic in `config.jira`. Owns its timer and seen store; every touch of them happens on `queue`.
+/// Watches every epic in `config.jira.epics`. Owns its timer and seen store; every touch of them happens on `queue`.
 final class EpicPoller {
     private var config: Config
     private let client: JiraClient
@@ -12,7 +12,9 @@ final class EpicPoller {
     private var isPaused = false
     /// Moves and assignments made from the menu, by ticket key, until a poll sees them land.
     private var ownActions: [String: [TicketAction]] = [:]
-    private var projectStatuses: (project: String, statuses: Set<TicketStatus>)?
+    private var projectStatuses: [String: Set<TicketStatus>] = [:]
+    /// The last branch each epic loaded, still shown above the error while a later poll of it fails.
+    private var lastBranches: [String: EpicBranch] = [:]
 
     private static let statusSampleSize = 200
     /// Minutes added to the "updated since" window, for clock skew and edits landing while a poll runs.
@@ -25,7 +27,7 @@ final class EpicPoller {
         self.client = client
         self.notifier = notifier
         self.list = list
-        self.store = EpicSeenStore.load(for: config.jira.epic)
+        self.store = EpicSeenStore.load()
     }
 
     func start() {
@@ -36,8 +38,8 @@ final class EpicPoller {
             timer.schedule(deadline: .now(), repeating: config.pollInterval)
             self.timer = timer
             timer.resume()
-            if !jira.epic.isEmpty {
-                Log.write("watching epic \(jira.epic) on \(jira.site)")
+            if jira.isSetUp {
+                Log.write("following epics \(Self.describe(jira.epics)) on \(jira.site)")
             }
         }
     }
@@ -63,11 +65,10 @@ final class EpicPoller {
         queue.async { [weak self] in
             guard let self else { return }
             let isNewInterval = newConfig.pollInterval != config.pollInterval
-            let isNewEpic = newConfig.jira.epic != jira.epic
+            let isNewFollowing = newConfig.jira.epics != jira.epics
             config = newConfig
-            if isNewEpic {
-                Log.write("watching epic \(newConfig.jira.epic)")
-                list.showWaiting()
+            if isNewFollowing {
+                Log.write("following epics \(Self.describe(newConfig.jira.epics))")
                 poll()
             }
             guard isNewInterval, let timer, !isPaused else { return }
@@ -88,31 +89,61 @@ final class EpicPoller {
             list.showNotSetUp()
             return
         }
-        guard let project = jira.project else {
-            list.showNoEpic()
-            return
-        }
-        if store.epic != jira.epic {
-            store = .fresh(for: jira.epic)
-            ownActions = [:]
-        }
+        let epicKeys = jira.epics
         do {
-            let startedAt = Date()
-            let polled = try readBranch()
-            list.show(polled.branch, statuses: try transitionTargets(in: project, seenIn: polled))
-            for (ticket, changes) in reconcile(polled, polledAt: startedAt) {
-                Log.write("\(ticket.key): " + changes.map { $0.headline(for: ticket, epic: jira.epic, me: jira.email) }
-                    .joined(separator: " · "))
-                notifier.post(ticket, changes: changes, jira: jira)
-            }
+            try sampleStatuses(ofProjects: Set(epicKeys.map(Ticket.project(of:))))
         } catch {
             Log.write("epic poll failed: \(error.localizedDescription)")
             list.showFailure(error)
+            return
+        }
+
+        let startedAt = Date()
+        let known = store
+        let outcomes = concurrently(epicKeys) { [client] key in
+            try Self.fetch(key, known: known.epics[key], client: client)
+        }
+        var sections: [EpicSection] = []
+        var epics: [String: EpicSeenStore.EpicState] = [:]
+        var announcements: [Announcement] = []
+        for (key, outcome) in zip(epicKeys, outcomes) {
+            switch outcome {
+            case .success(let fetched):
+                let reconciled = reconcile(fetched, known: known.epics[key], polledAt: startedAt)
+                epics[key] = reconciled.state
+                announcements += reconciled.announcements
+                lastBranches[key] = fetched.branch
+                sections.append(EpicSection(key: key, branch: fetched.branch, failure: nil))
+            case .failure(let error):
+                Log.write("epic \(key) poll failed: \(error.localizedDescription)")
+                epics[key] = known.epics[key]
+                sections.append(EpicSection(key: key, branch: lastBranches[key], failure: error.localizedDescription))
+            }
+        }
+
+        // Rebuilding the map drops epics no longer followed, so following one again starts silent.
+        store = EpicSeenStore(epics: epics)
+        lastBranches = lastBranches.filter { epicKeys.contains($0.key) }
+        let trackedKeys = Set(epics.values.flatMap(\.tickets.keys))
+        ownActions = ownActions.filter { trackedKeys.contains($0.key) }
+        do {
+            try store.save()
+        } catch {
+            Log.write("could not persist state to \(Paths.epicStateFile.path): \(error.localizedDescription)")
+        }
+
+        list.show(sections, statuses: transitionTargets(seenIn: sections))
+        for announcement in announcements {
+            let headlines = announcement.changes.map {
+                $0.headline(for: announcement.ticket, epic: announcement.epicKey, me: jira.email)
+            }
+            Log.write("\(announcement.ticket.key): " + headlines.joined(separator: " · "))
+            notifier.post(announcement.ticket, epic: announcement.epicKey, changes: announcement.changes, jira: jira)
         }
     }
 
-    private func readBranch() throws -> PolledBranch {
-        let epicKey = jira.epic
+    /// Reads one epic's tree. Runs alongside the other epics' reads, so it touches nothing but its arguments.
+    private static func fetch(_ epicKey: String, known: EpicSeenStore.EpicState?, client: JiraClient) throws -> FetchedEpic {
         let tree = try client.search("key = \(epicKey) OR parent = \(epicKey)")
         guard let epic = tree.first(where: { $0.key == epicKey }) else {
             throw WatcherError.setup("\(epicKey) does not exist, or you cannot see it")
@@ -125,75 +156,76 @@ final class EpicPoller {
             : "key = \(epicKey) OR parent in (\(epicKey), \(childKeys))"
 
         let tickets = tree + subtasks
-        let unseen = tickets.map(\.key).filter { store.tickets[$0] == nil }
-        let changed = try recentlyChangedKeys(matching: branchJQL)
+        let unseen = tickets.map(\.key).filter { known?.tickets[$0] == nil }
+        let changed = try known.map { try recentlyChangedKeys(matching: branchJQL, since: $0.polledAt, client: client) } ?? []
         let activities = try client.activities(of: Array(Set(unseen + changed)))
 
         var parentKeys: [String: String] = [:]
         for ticket in tickets {
-            parentKeys[ticket.key] = activities[ticket.key]?.parentKey ?? store.tickets[ticket.key]?.parentKey
+            parentKeys[ticket.key] = activities[ticket.key]?.parentKey ?? known?.tickets[ticket.key]?.parentKey
         }
         let branch = try EpicBranch(epic: epic, children: children, subtasks: subtasks, parentKeys: parentKeys)
-        return PolledBranch(branch: branch, tickets: tickets, activities: activities, parentKeys: parentKeys)
+        return FetchedEpic(branch: branch, tickets: tickets, activities: activities, parentKeys: parentKeys)
     }
 
     /// Search will not return `updated`, but it filters on it: what changed since the last poll is read in full.
-    private func recentlyChangedKeys(matching branchJQL: String) throws -> [String] {
-        guard let polledAt = store.polledAt else { return [] }
-        let minutes = Int((Date().timeIntervalSince(polledAt) / 60).rounded(.up)) + Self.windowMarginMinutes
+    private static func recentlyChangedKeys(matching branchJQL: String, since polledAt: Date,
+                                            client: JiraClient) throws -> [String] {
+        let minutes = Int((Date().timeIntervalSince(polledAt) / 60).rounded(.up)) + windowMarginMinutes
         return try client.search("(\(branchJQL)) AND updated >= -\(minutes)m").map(\.key)
     }
 
-    /// acli cannot list a ticket's transitions, so the menu offers every status the project uses lately;
+    /// acli cannot list a ticket's transitions, so the menu offers every status the project used lately;
     /// Jira refuses the ones the workflow does not allow from where the ticket stands.
-    private func transitionTargets(in project: String, seenIn polled: PolledBranch) throws -> [TicketStatus] {
-        if projectStatuses?.project != project {
-            let sample = try client.recentlyUpdated(in: project, limit: Self.statusSampleSize)
-            projectStatuses = (project, Set(sample.map(\.status)))
-        }
-        let statuses = (projectStatuses?.statuses ?? []).union(polled.tickets.map(\.status))
-        let workflowOrder = TicketStatus.Category.allCases
-        return statuses.sorted { lhs, rhs in
-            let left = workflowOrder.firstIndex(of: lhs.category) ?? 0
-            let right = workflowOrder.firstIndex(of: rhs.category) ?? 0
-            guard left == right else { return left < right }
-            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+    private func sampleStatuses(ofProjects projects: Set<String>) throws {
+        for project in projects where projectStatuses[project] == nil {
+            let sample = try client.search("project = \(project) ORDER BY updated DESC", limit: Self.statusSampleSize)
+            projectStatuses[project] = Set(sample.map(\.status))
         }
     }
 
-    private func reconcile(_ polled: PolledBranch, polledAt: Date) -> [(Ticket, [TicketChange])] {
-        let isSeeded = store.polledAt != nil
-        var announcements: [(Ticket, [TicketChange])] = []
-        var current: [String: EpicSeenStore.TicketState] = [:]
-        for ticket in polled.tickets {
-            let previous = store.tickets[ticket.key]
-            let activity = polled.activities[ticket.key]
+    private func transitionTargets(seenIn sections: [EpicSection]) -> [String: [TicketStatus]] {
+        var statuses = projectStatuses
+        for branch in sections.compactMap(\.branch) {
+            for ticket in [branch.epic] + branch.workItems {
+                statuses[ticket.project, default: []].insert(ticket.status)
+            }
+        }
+        let workflowOrder = TicketStatus.Category.allCases
+        return statuses.mapValues { projectStatuses in
+            projectStatuses.sorted { lhs, rhs in
+                let left = workflowOrder.firstIndex(of: lhs.category) ?? 0
+                let right = workflowOrder.firstIndex(of: rhs.category) ?? 0
+                guard left == right else { return left < right }
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+        }
+    }
+
+    private func reconcile(_ fetched: FetchedEpic, known: EpicSeenStore.EpicState?,
+                           polledAt: Date) -> (state: EpicSeenStore.EpicState, announcements: [Announcement]) {
+        var announcements: [Announcement] = []
+        var tickets: [String: EpicSeenStore.TicketState] = [:]
+        for ticket in fetched.tickets {
+            let previous = known?.tickets[ticket.key]
+            let activity = fetched.activities[ticket.key]
             let changes: [TicketChange]
             if let previous {
                 changes = self.changes(to: ticket, since: previous, activity: activity)
             } else {
-                changes = isSeeded && jira.notifyOnNewTicket ? [.added] : []
+                changes = known != nil && jira.notifyOnNewTicket ? [.added] : []
             }
             if !changes.isEmpty {
-                announcements.append((ticket, changes))
+                announcements.append(Announcement(ticket: ticket, epicKey: fetched.branch.epic.key, changes: changes))
             }
-            current[ticket.key] = EpicSeenStore.TicketState(
+            tickets[ticket.key] = EpicSeenStore.TicketState(
                 status: ticket.status.name,
                 assigneeAccountID: ticket.assignee?.accountID,
-                parentKey: polled.parentKeys[ticket.key],
+                parentKey: fetched.parentKeys[ticket.key],
                 latestCommentID: activity?.comments.map(\.id).max() ?? previous?.latestCommentID
             )
         }
-
-        // Rebuilding the map rather than merging drops tickets moved out of the branch or deleted.
-        store = EpicSeenStore(epic: jira.epic, polledAt: polledAt, tickets: current)
-        ownActions = ownActions.filter { current[$0.key] != nil }
-        do {
-            try store.save()
-        } catch {
-            Log.write("could not persist state to \(Paths.epicStateFile.path): \(error.localizedDescription)")
-        }
-        return announcements
+        return (EpicSeenStore.EpicState(polledAt: polledAt, tickets: tickets), announcements)
     }
 
     private func changes(to ticket: Ticket, since previous: EpicSeenStore.TicketState,
@@ -230,11 +262,21 @@ final class EpicPoller {
         ownActions[key]?.remove(at: index)
         return true
     }
+
+    private static func describe(_ epics: [String]) -> String {
+        epics.isEmpty ? "none" : epics.joined(separator: ", ")
+    }
 }
 
-private struct PolledBranch {
+private struct FetchedEpic {
     let branch: EpicBranch
     let tickets: [Ticket]
     let activities: [String: TicketActivity]
     let parentKeys: [String: String]
+}
+
+private struct Announcement {
+    let ticket: Ticket
+    let epicKey: String
+    let changes: [TicketChange]
 }

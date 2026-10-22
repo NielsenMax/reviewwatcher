@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             }
             statusItem = StatusItemController(list: list,
                                               tickets: tickets,
+                                              epicSearch: EpicSearch(client: jiraClient),
                                               settings: settings,
                                               diffWindows: DiffWindows(list: list, client: client, settings: settings),
                                               settingsWindow: SettingsWindow(settings: settings))

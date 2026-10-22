@@ -1,10 +1,16 @@
 import Foundation
 
+/// One followed epic as the Epic tab shows it. `branch` is nil until its first poll succeeds.
+struct EpicSection {
+    let key: String
+    let branch: EpicBranch?
+    let failure: String?
+}
+
 /// What the popover's Epic tab shows. Owned by the main queue; the poller feeds it from its own.
 final class TicketList: ObservableObject {
     enum PollState {
         case notSetUp
-        case noEpic
         case waiting
         case updated(Date)
         case failed(String)
@@ -16,10 +22,10 @@ final class TicketList: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var branch: EpicBranch?
-    @Published private(set) var statuses: [TicketStatus] = []
+    @Published private(set) var sections: [String: EpicSection] = [:]
     @Published private(set) var pollState = PollState.waiting
     @Published private(set) var progress: [String: Progress] = [:]
+    private var statusesByProject: [String: [TicketStatus]] = [:]
 
     let email: String
     private let client: JiraClient
@@ -33,11 +39,11 @@ final class TicketList: ObservableObject {
         self.client = client
     }
 
-    func show(_ branch: EpicBranch, statuses: [TicketStatus]) {
+    func show(_ polled: [EpicSection], statuses: [String: [TicketStatus]]) {
         DispatchQueue.main.async {
-            let shownKeys = Set(branch.workItems.map(\.key))
-            self.branch = branch
-            self.statuses = statuses
+            let shownKeys = Set(polled.compactMap(\.branch).flatMap { [$0.epic] + $0.workItems }.map(\.key))
+            self.sections = Dictionary(uniqueKeysWithValues: polled.map { ($0.key, $0) })
+            self.statusesByProject = statuses
             self.progress = self.progress.filter { key, progress in
                 guard shownKeys.contains(key) else { return false }
                 if case .done = progress { return false }
@@ -47,25 +53,10 @@ final class TicketList: ObservableObject {
         }
     }
 
-    func showWaiting() {
-        DispatchQueue.main.async {
-            self.branch = nil
-            self.progress = [:]
-            self.pollState = .waiting
-        }
-    }
-
     func showNotSetUp() {
         DispatchQueue.main.async {
-            self.branch = nil
+            self.sections = [:]
             self.pollState = .notSetUp
-        }
-    }
-
-    func showNoEpic() {
-        DispatchQueue.main.async {
-            self.branch = nil
-            self.pollState = .noEpic
         }
     }
 
@@ -76,7 +67,7 @@ final class TicketList: ObservableObject {
     }
 
     func moveTargets(for ticket: Ticket) -> [TicketStatus] {
-        statuses.filter { $0.name != ticket.status.name }
+        (statusesByProject[ticket.project] ?? []).filter { $0.name != ticket.status.name }
     }
 
     func assignment(for ticket: Ticket) -> TicketAction {

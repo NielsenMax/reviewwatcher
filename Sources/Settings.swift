@@ -18,9 +18,6 @@ final class Settings: ObservableObject {
         }
     }
 
-    /// The epic key as typed. It reaches `config` only through `watchEpicDraft`, so a half-typed key never polls.
-    @Published var epicDraft: String
-
     @Published private(set) var saveFailure: String?
 
     private let onChange: (Config) -> Void
@@ -28,23 +25,16 @@ final class Settings: ObservableObject {
     init(config: Config, onChange: @escaping (Config) -> Void) {
         self.config = config
         self.collapsedPatternsText = config.collapsedFilePatterns.joined(separator: "\n")
-        self.epicDraft = config.jira.epic
         self.onChange = onChange
     }
 
-    var isEpicDraftWatchable: Bool {
-        normalizedEpicDraft != config.jira.epic
-            && normalizedEpicDraft.range(of: #"^[A-Z][A-Z0-9_]*-[0-9]+$"#, options: .regularExpression) != nil
+    func follow(_ epic: String) {
+        guard !config.jira.epics.contains(epic) else { return }
+        config.jira.epics.append(epic)
     }
 
-    func watchEpicDraft() {
-        guard isEpicDraftWatchable else { return }
-        epicDraft = normalizedEpicDraft
-        config.jira.epic = epicDraft
-    }
-
-    private var normalizedEpicDraft: String {
-        epicDraft.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    func unfollow(_ epic: String) {
+        config.jira.epics.removeAll { $0 == epic }
     }
 
     private func persist() {

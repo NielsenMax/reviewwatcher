@@ -3,16 +3,23 @@ import SwiftUI
 struct TicketListView: View {
     @ObservedObject var list: TicketList
     @ObservedObject var settings: Settings
+    @ObservedObject var search: EpicSearch
     let openSettings: () -> Void
     @Environment(\.openURL) private var openURL
 
-    private static let maxRowsHeight: CGFloat = 520
+    private static let maxSectionsHeight: CGFloat = 480
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            content
+            if case .notSetUp = list.pollState {
+                placeholder("Log in with acli jira auth login, then run install.sh again.")
+            } else {
+                searchBox
+                Divider()
+                sections
+            }
         }
         .frame(width: 480)
     }
@@ -20,7 +27,7 @@ struct TicketListView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                epicTitle
+                Text("Epics").font(.headline)
                 pollSummary.font(.caption).lineLimit(1).truncationMode(.tail)
             }
             Spacer()
@@ -40,63 +47,97 @@ struct TicketListView: View {
     }
 
     @ViewBuilder
-    private var epicTitle: some View {
-        if let epic = list.branch?.epic {
-            Button { open(epic.key) } label: {
-                Text("\(epic.key) · \(epic.summary)").font(.headline).lineLimit(1).truncationMode(.tail)
-            }
-            .buttonStyle(.plain)
-            .help("Open \(epic.key) in Jira")
-        } else {
-            Text(settings.config.jira.epic.isEmpty ? "Epic" : settings.config.jira.epic).font(.headline)
-        }
-    }
-
-    @ViewBuilder
     private var pollSummary: some View {
         switch list.pollState {
         case .notSetUp:
             Text("Jira not set up").foregroundStyle(.secondary)
-        case .noEpic:
-            Text("No epic chosen").foregroundStyle(.secondary)
         case .waiting:
             Text("Loading…").foregroundStyle(.secondary)
         case .updated(let date):
-            let total = list.branch?.workItems.count ?? 0
-            let done = total - (list.branch?.openCount ?? 0)
-            Text("\(done) of \(total) done · updated \(date.formatted(date: .omitted, time: .shortened))")
+            let count = settings.config.jira.epics.count
+            Text("\(count) followed · updated \(date.formatted(date: .omitted, time: .shortened))")
                 .foregroundStyle(.secondary)
         case .failed(let message):
             Text(message).foregroundStyle(.red).help(message)
         }
     }
 
+    private var searchBox: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Follow an epic: search its title or type a key", text: $search.query)
+                    .textFieldStyle(.plain)
+                if case .searching = search.state {
+                    ProgressView().controlSize(.small)
+                }
+                if !search.query.isEmpty {
+                    Button { search.clear() } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            searchResults
+        }
+    }
+
     @ViewBuilder
-    private var content: some View {
-        if case .notSetUp = list.pollState {
-            placeholder("Log in with acli jira auth login, then run install.sh again.")
-        } else if case .noEpic = list.pollState {
-            VStack(spacing: 8) {
-                Text("Choose the epic to watch.").foregroundStyle(.secondary)
-                Button("Open Settings", action: openSettings)
+    private var searchResults: some View {
+        switch search.state {
+        case .idle, .searching:
+            EmptyView()
+        case .failed(let message):
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
+        case .found(let epics) where epics.isEmpty:
+            Text("No open epic matches.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
+        case .found(let epics):
+            VStack(spacing: 0) {
+                ForEach(epics) { epic in
+                    SearchResultRow(epic: epic, isFollowed: settings.config.jira.epics.contains(epic.key)) {
+                        settings.follow(epic.key)
+                        search.clear()
+                    }
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
-        } else if let branch = list.branch {
-            let rows = branch.rows(includingDone: settings.config.jira.showsDoneTickets)
-            if rows.isEmpty {
-                placeholder(branch.workItems.isEmpty ? "Nothing filed under \(branch.epic.key) yet."
-                                                      : "Everything under \(branch.epic.key) is done.")
-            } else {
-                // The popover takes the ideal size, and a scroll view's ideal height is its content's.
-                ScrollView { rowStack(rows) }
-                    .frame(maxHeight: Self.maxRowsHeight)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        } else if case .waiting = list.pollState {
-            ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(.vertical, 24)
+            .padding(.bottom, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var sections: some View {
+        if settings.config.jira.epics.isEmpty {
+            placeholder("Search above to follow an epic.")
         } else {
-            placeholder("Could not load the epic.")
+            // The popover takes the ideal size, and a scroll view's ideal height is its content's.
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(settings.config.jira.epics, id: \.self) { key in
+                        EpicSectionView(key: key,
+                                        section: list.sections[key],
+                                        showsDone: settings.config.jira.showsDoneTickets,
+                                        list: list,
+                                        open: open,
+                                        unfollow: settings.unfollow)
+                        if key != settings.config.jira.epics.last {
+                            Divider()
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: Self.maxSectionsHeight)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -108,19 +149,110 @@ struct TicketListView: View {
             .padding(24)
     }
 
-    private func rowStack(_ rows: [EpicBranch.Row]) -> some View {
-        VStack(spacing: 0) {
-            ForEach(rows) { row in
-                TicketRow(row: row, list: list, open: open)
-                if row.id != rows.last?.id {
-                    Divider().padding(.leading, 14)
+    private func open(_ key: String) {
+        if let url = settings.config.jira.browseURL(for: key) { openURL(url) }
+    }
+}
+
+private struct SearchResultRow: View {
+    let epic: Ticket
+    let isFollowed: Bool
+    let follow: () -> Void
+
+    var body: some View {
+        Button(action: follow) {
+            HStack(spacing: 8) {
+                TicketStatusDot(category: epic.status.category)
+                Text(epic.key)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                Text(epic.summary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 4)
+                if isFollowed {
+                    Text("Following").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "plus.circle")
                 }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isFollowed)
+        .help(isFollowed ? "Already following \(epic.key)" : "Follow \(epic.key)")
+    }
+}
+
+private struct EpicSectionView: View {
+    let key: String
+    let section: EpicSection?
+    let showsDone: Bool
+    @ObservedObject var list: TicketList
+    let open: (String) -> Void
+    let unfollow: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            if let failure = section?.failure {
+                Text(failure)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+            }
+            if let branch = section?.branch {
+                let rows = branch.rows(includingDone: showsDone)
+                if rows.isEmpty {
+                    Text(branch.workItems.isEmpty ? "Nothing filed under it yet." : "Everything is done.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                ForEach(rows) { row in
+                    Divider().padding(.leading, 14)
+                    TicketRow(row: row, list: list, open: open)
+                }
+            } else if section?.failure == nil {
+                ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(.vertical, 12)
             }
         }
     }
 
-    private func open(_ key: String) {
-        if let url = settings.config.jira.browseURL(for: key) { openURL(url) }
+    private var header: some View {
+        HStack(spacing: 8) {
+            if let epic = section?.branch?.epic {
+                TicketStatusDot(category: epic.status.category)
+            }
+            Button { open(key) } label: {
+                Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1).truncationMode(.tail)
+            }
+            .buttonStyle(.plain)
+            .help("Open \(key) in Jira")
+            Spacer(minLength: 4)
+            if let branch = section?.branch {
+                Text("\(branch.workItems.count - branch.openCount) of \(branch.workItems.count) done")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Button { unfollow(key) } label: { Image(systemName: "xmark") }
+                .buttonStyle(.borderless)
+                .help("Stop following \(key)")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.secondary.opacity(0.08))
+    }
+
+    private var title: String {
+        guard let epic = section?.branch?.epic else { return key }
+        return "\(epic.key) · \(epic.summary)"
     }
 }
 

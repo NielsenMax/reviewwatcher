@@ -11,6 +11,14 @@ struct Ticket: Identifiable, Equatable {
 
     var id: String { key }
 
+    var project: String {
+        Self.project(of: key)
+    }
+
+    static func project(of key: String) -> String {
+        String(key.split(separator: "-").first ?? "")
+    }
+
     func isAssigned(to email: String) -> Bool {
         assignee?.isSomeone(withEmail: email) ?? false
     }

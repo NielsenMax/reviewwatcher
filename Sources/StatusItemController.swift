@@ -10,13 +10,15 @@ final class StatusItemController: NSObject {
     private let tabs = PopoverTabs()
     private var badgeUpdates: AnyCancellable?
 
-    init(list: ReviewList, tickets: TicketList, settings: Settings, diffWindows: DiffWindows, settingsWindow: SettingsWindow) {
+    init(list: ReviewList, tickets: TicketList, epicSearch: EpicSearch, settings: Settings,
+         diffWindows: DiffWindows, settingsWindow: SettingsWindow) {
         self.list = list
         self.tickets = tickets
         super.init()
 
         let reviews = ReviewListView(list: list, openDiff: diffWindows.show, openSettings: settingsWindow.show)
-        let epic = TicketListView(list: tickets, settings: settings, openSettings: settingsWindow.show)
+        let epic = TicketListView(list: tickets, settings: settings, search: epicSearch,
+                                  openSettings: settingsWindow.show)
         let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host

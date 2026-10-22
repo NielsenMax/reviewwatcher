@@ -71,9 +71,9 @@ struct Notifier {
     }
 
     /// One notification per ticket and poll, carrying every change it went through since the last one.
-    func post(_ ticket: Ticket, changes: [TicketChange], jira: JiraConfig) {
+    func post(_ ticket: Ticket, epic: String, changes: [TicketChange], jira: JiraConfig) {
         let content = UNMutableNotificationContent()
-        let headlines = changes.map { $0.headline(for: ticket, epic: jira.epic, me: jira.email) }
+        let headlines = changes.map { $0.headline(for: ticket, epic: epic, me: jira.email) }
         content.title = "\(ticket.status.category.emoji) " + headlines.joined(separator: " · ")
         content.subtitle = "\(ticket.key) · \(ticket.summary)"
         content.body = body(for: ticket, changes: changes)

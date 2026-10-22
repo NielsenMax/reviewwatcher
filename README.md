@@ -7,9 +7,9 @@ approve or merge the small ones without leaving the desk.
 
 Polls through `glab`, so it inherits whatever instance and credentials glab uses.
 
-An **Epic** tab in the same popover follows one Jira epic through `acli`: its
-children and their subtasks, with a notification whenever one is added, changes
-status, is reassigned or gets a comment.
+An **Epic** tab in the same popover follows Jira epics through `acli`: each
+one's children and their subtasks, with a notification whenever one is added,
+changes status, is reassigned or gets a comment.
 
 ## Install
 
@@ -30,7 +30,7 @@ login when that already carries `api`. Last it loads a LaunchAgent so the
 watcher starts at login.
 
 For the Epic tab, log in to Jira through acli before installing. `install.sh`
-reads the site and your email from that login, and `EPIC` picks the first epic:
+reads the site and your email from that login, and `EPIC` follows a first epic:
 
 ```sh
 brew install atlassian/acli/acli
@@ -138,10 +138,15 @@ The window takes ⌘W to close and ⌘C to copy a selected line.
 
 ## Epic tab
 
-The tab lists the epic's children, each followed by its subtasks: work in
+The search box at the top finds open epics whose title holds every word typed,
+or any ticket by its key; clicking a result follows it. Each followed epic gets
+a section whose title opens it in Jira, with a count of what is done and an ×
+that stops following it. Following an epic again later starts afresh.
+
+A section lists the epic's children, each followed by its subtasks: work in
 progress first, then what waits, then what is done. Finished tickets are hidden
 until the ✓ in the header shows them; a finished child stays while a subtask of
-it is open. The header counts what is done and opens the epic in Jira.
+it is open.
 
 Each row offers:
 
@@ -168,10 +173,12 @@ The dot follows the ticket's status category: ⚪ to do, 🔵 in progress, 🟢 
 Moves and assignments made from the menu bar stay quiet. Ones you make in Jira
 itself notify like anyone else's, since acli does not say who made a change.
 
-Each poll runs two searches to read the tree and one more for tickets updated
-since the last poll; only those, and tickets seen for the first time, are opened
-one by one to read their comments. Changing the epic starts silently: the first
-poll of an epic only takes note of what is there.
+Every epic is read on its own and all of them at once, so one that fails, say
+deleted or out of your reach, shows its error in its section and leaves the
+others alone. Each read runs two searches for the tree and one more for tickets
+updated since that epic's last poll; only those, and tickets seen for the first
+time, are opened one by one to read their comments. A newly followed epic starts
+silently: its first poll only takes note of what is there.
 
 ## Configuration
 
@@ -198,7 +205,7 @@ patterns. Changes apply at once and are saved to
 | `collapsedFilePatterns` | `["*test*", "*spec/*"]` | Files the diff window opens collapsed; see [Diff window](#diff-window). |
 | `jira.site` | from `acli jira auth status` | Jira Cloud site the ticket links point at. |
 | `jira.email` | from `acli jira auth status` | Who "you" is, for assignments and your own comments. |
-| `jira.epic` | `EPIC`, or empty | Ticket whose branch the Epic tab follows; set it in the settings. |
+| `jira.epics` | `[EPIC]`, or empty | Tickets whose branches the Epic tab follows, in the order shown; managed from the tab. |
 | `jira.notifyOnNewTicket` | `true` | Ping when a ticket is filed under the epic. |
 | `jira.notifyOnStatusChange` | `true` | Ping when a ticket changes status. |
 | `jira.notifyOnAssigneeChange` | `true` | Ping when a ticket is assigned or unassigned. |
@@ -222,7 +229,7 @@ that file.
 - Log: `~/Library/Logs/reviewwatcher.log` — approvals and merges made from the
   menu bar are logged there too.
 - Epic state: `~/.local/state/reviewwatcher/epic.json` — the last status,
-  assignee and comment seen on each ticket of the watched epic.
+  assignee and comment seen on each ticket, per followed epic.
 - Seen state: `~/.local/state/reviewwatcher/seen.json` — delete it to re-announce
   everything currently open.
 

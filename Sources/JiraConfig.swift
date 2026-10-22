@@ -4,7 +4,7 @@ import Foundation
 struct JiraConfig: Equatable {
     var site = ""
     var email = ""
-    var epic = ""
+    var epics: [String] = []
     var notifyOnNewTicket = true
     var notifyOnStatusChange = true
     var notifyOnAssigneeChange = true
@@ -15,10 +15,6 @@ struct JiraConfig: Equatable {
         !site.isEmpty && !email.isEmpty
     }
 
-    var project: String? {
-        epic.split(separator: "-").first.map(String.init)
-    }
-
     func browseURL(for key: String) -> URL? {
         URL(string: "https://\(site)/browse/\(key)")
     }
@@ -26,7 +22,7 @@ struct JiraConfig: Equatable {
 
 extension JiraConfig: Codable {
     private enum CodingKeys: String, CodingKey {
-        case site, email, epic
+        case site, email, epics
         case notifyOnNewTicket, notifyOnStatusChange, notifyOnAssigneeChange, notifyOnComment
         case showDoneTickets
     }
@@ -36,7 +32,7 @@ extension JiraConfig: Codable {
         let defaults = JiraConfig()
         site = try container.decodeIfPresent(String.self, forKey: .site) ?? defaults.site
         email = try container.decodeIfPresent(String.self, forKey: .email) ?? defaults.email
-        epic = try container.decodeIfPresent(String.self, forKey: .epic) ?? defaults.epic
+        epics = try container.decodeIfPresent([String].self, forKey: .epics) ?? defaults.epics
         notifyOnNewTicket = try container.decodeIfPresent(Bool.self, forKey: .notifyOnNewTicket) ?? defaults.notifyOnNewTicket
         notifyOnStatusChange = try container.decodeIfPresent(Bool.self, forKey: .notifyOnStatusChange) ?? defaults.notifyOnStatusChange
         notifyOnAssigneeChange = try container.decodeIfPresent(Bool.self, forKey: .notifyOnAssigneeChange) ?? defaults.notifyOnAssigneeChange
@@ -48,7 +44,7 @@ extension JiraConfig: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(site, forKey: .site)
         try container.encode(email, forKey: .email)
-        try container.encode(epic, forKey: .epic)
+        try container.encode(epics, forKey: .epics)
         try container.encode(notifyOnNewTicket, forKey: .notifyOnNewTicket)
         try container.encode(notifyOnStatusChange, forKey: .notifyOnStatusChange)
         try container.encode(notifyOnAssigneeChange, forKey: .notifyOnAssigneeChange)

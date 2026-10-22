@@ -1,11 +1,15 @@
 import Foundation
 
-/// What each ticket under the watched epic looked like at the last poll, so a restart is silent and only changes speak.
+/// What each ticket under each followed epic looked like at its last poll, so a restart is silent and only
+/// changes speak. An epic without an entry has not been polled yet: its first poll only takes note.
 struct EpicSeenStore: Codable {
-    let epic: String
-    /// When the last successful poll started; nil until the first one for `epic`.
-    var polledAt: Date?
-    var tickets: [String: TicketState]
+    var epics: [String: EpicState]
+
+    struct EpicState: Codable {
+        /// When this epic's last successful poll started.
+        let polledAt: Date
+        let tickets: [String: TicketState]
+    }
 
     struct TicketState: Codable {
         let status: String
@@ -15,17 +19,12 @@ struct EpicSeenStore: Codable {
         let latestCommentID: Int?
     }
 
-    static func fresh(for epic: String) -> EpicSeenStore {
-        EpicSeenStore(epic: epic, polledAt: nil, tickets: [:])
-    }
-
-    static func load(for epic: String) -> EpicSeenStore {
+    static func load() -> EpicSeenStore {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let data = try? Data(contentsOf: Paths.epicStateFile),
-              let store = try? decoder.decode(EpicSeenStore.self, from: data),
-              store.epic == epic else {
-            return fresh(for: epic)
+              let store = try? decoder.decode(EpicSeenStore.self, from: data) else {
+            return EpicSeenStore(epics: [:])
         }
         return store
     }

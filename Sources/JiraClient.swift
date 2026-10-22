@@ -12,29 +12,16 @@ struct JiraClient {
         return found
     }
 
-    func search(_ jql: String) throws -> [Ticket] {
-        try decode([Ticket].self, from: runAcli(["jira", "workitem", "search", "--jql", jql, "--json", "--paginate"]))
-    }
-
-    func recentlyUpdated(in project: String, limit: Int) throws -> [Ticket] {
-        let jql = "project = \(project) ORDER BY updated DESC"
-        let arguments = ["jira", "workitem", "search", "--jql", jql, "--json", "--limit", String(limit)]
-        return try decode([Ticket].self, from: runAcli(arguments))
+    /// Without a limit, every page of results is fetched.
+    func search(_ jql: String, limit: Int? = nil) throws -> [Ticket] {
+        let scope = limit.map { ["--limit", String($0)] } ?? ["--paginate"]
+        return try decode([Ticket].self, from: runAcli(["jira", "workitem", "search", "--jql", jql, "--json"] + scope))
     }
 
     /// Each `view` spends a second or more on acli start-up and the round trip, so they run side by side.
     func activities(of keys: [String]) throws -> [String: TicketActivity] {
-        var results = [Result<TicketActivity, Error>](repeating: .failure(WatcherError.acli("not fetched")),
-                                                       count: keys.count)
-        let lock = NSLock()
-        DispatchQueue.concurrentPerform(iterations: keys.count) { index in
-            let result = Result { try activity(of: keys[index]) }
-            lock.lock()
-            results[index] = result
-            lock.unlock()
-        }
         var activities: [String: TicketActivity] = [:]
-        for (key, result) in zip(keys, results) {
+        for (key, result) in zip(keys, concurrently(keys, activity(of:))) {
             do {
                 activities[key] = try result.get()
             } catch {
@@ -101,6 +88,7 @@ struct JiraClient {
             let detail = [stderr, stdout]
                 .map { String(decoding: $0, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) }
                 .first { !$0.isEmpty }
+                .map { $0.replacingOccurrences(of: #"^✗ (Error: )?"#, with: "", options: .regularExpression) }
             throw WatcherError.acli(detail ?? "exit \(process.terminationStatus)")
         }
         return stdout

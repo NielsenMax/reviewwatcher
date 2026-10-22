@@ -47,7 +47,9 @@ if [[ -z "$(plutil -extract jira.site raw -o - "$CONFIG_DIR/config.json" 2>/dev/
     site="$(awk '$1 == "Site:" { print $2 }' <<<"$auth")"
     email="$(awk '$1 == "Email:" { print $2 }' <<<"$auth")"
     if [[ -n "$site" && -n "$email" ]]; then
-        plutil -replace jira -json "{\"site\":\"$site\",\"email\":\"$email\",\"epic\":\"${EPIC:-}\"}" "$CONFIG_DIR/config.json"
+        epics="[]"
+        [[ -z "${EPIC:-}" ]] || epics="[\"$EPIC\"]"
+        plutil -replace jira -json "{\"site\":\"$site\",\"email\":\"$email\",\"epics\":$epics}" "$CONFIG_DIR/config.json"
         echo "Epic tab reads Jira on $site as $email"
     else
         echo "Epic tab off: install acli, run 'acli jira auth login', then ./install.sh again"
