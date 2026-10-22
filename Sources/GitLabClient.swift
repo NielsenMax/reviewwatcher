@@ -53,6 +53,18 @@ struct GitLabClient {
         return lines
     }
 
+    func subgroups(of groupPath: String) throws -> [TeamGroup] {
+        guard let encodedPath = groupPath.addingPercentEncoding(withAllowedCharacters: Self.unreservedCharacters) else {
+            throw WatcherError.setup("could not encode the group path \(groupPath)")
+        }
+        return try JSONDecoder().decode([TeamGroup].self,
+                                        from: runGlab(["api", "groups/\(encodedPath)/subgroups?per_page=100"]))
+    }
+
+    func members(ofGroup groupID: Int) throws -> [GroupMember] {
+        try JSONDecoder().decode([GroupMember].self, from: runGlab(["api", "groups/\(groupID)/members?per_page=100"]))
+    }
+
     /// GitLab reads a slash in the file path as part of the route, so every reserved character is escaped.
     private static let unreservedCharacters = CharacterSet(
         charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
@@ -153,5 +165,22 @@ struct GitLabClient {
             throw WatcherError.glab(detail.trimmingCharacters(in: .whitespacesAndNewlines))
         }
         return stdout
+    }
+}
+
+struct TeamGroup: Decodable {
+    let id: Int
+    let path: String
+}
+
+struct GroupMember: Decodable {
+    let username: String
+    let name: String
+    let accessLevel: Int
+    let state: String
+
+    private enum CodingKeys: String, CodingKey {
+        case username, name, state
+        case accessLevel = "access_level"
     }
 }

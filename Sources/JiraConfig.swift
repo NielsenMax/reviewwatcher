@@ -15,6 +15,12 @@ struct JiraConfig: Equatable {
         !site.isEmpty && !email.isEmpty
     }
 
+    var emailDomain: String? {
+        guard let at = email.lastIndex(of: "@") else { return nil }
+        let domain = email[email.index(after: at)...]
+        return domain.isEmpty ? nil : String(domain)
+    }
+
     func browseURL(for key: String) -> URL? {
         URL(string: "https://\(site)/browse/\(key)")
     }

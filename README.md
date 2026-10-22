@@ -11,6 +11,10 @@ An **Epic** tab in the same popover follows Jira epics through `acli`: each
 one's children and their subtasks, with a notification whenever one is added,
 changes status, is reassigned or gets a comment.
 
+The **Ruleta** button beside the tabs opens the ticket roulette: a casino wheel
+that deals the tickets of a Jira search out to the developers in a GitLab group's
+teams, assigning each in Jira as the ball lands.
+
 ## Install
 
 Needs an Apple Silicon Mac on macOS 13 or later, the Command Line Tools
@@ -180,6 +184,39 @@ updated since that epic's last poll; only those, and tickets seen for the first
 time, are opened one by one to read their comments. A newly followed epic starts
 silently: its first poll only takes note of what is there.
 
+## Ticket roulette
+
+A native port of the Node roulette, in its own window. Every opening reloads the
+table unless a spin is on it.
+
+**Players** come from the subgroups of the GitLab group in `roulette.teamsGroup`,
+each with the teams they belong to; owners of the group are left out. Each one is
+found in Jira through the issues assigned to `firstlast@domain`, built from the
+GitLab name and the domain of `jira.email`, since acli has no user search; someone
+never assigned anything has no Jira user and cannot play. The **Jugadores** tab's switch takes a person
+off the table for leave or on-call.
+
+**The pool** is whatever the JQL in the **Pozo** tab returns, up to 100 tickets;
+**Buscar** runs a new one and keeps it only if Jira accepts it. The list groups by
+epic or by tag, and **Sortear** on a group makes every spin take the next ticket
+from it until it runs dry.
+
+**A spin** picks a pocket at random. In **Pareja** every seated player has the
+same pocket; **Compensada** shrinks it for whoever holds more of the open tickets
+`roulette.loadJQL` finds. Team chips narrow the table to one team. The ticket shown
+**En juego** is assigned in Jira to the winner the moment the ball is thrown, and
+the result says whether Jira took it; with an empty pool the wheel just draws a
+name. Space spins too.
+
+**The result** offers the wheel and the winner as a 1200×630 PNG for the chat,
+the ticket as text, and **Deshacer**, which unassigns it in Jira and returns it
+to the pool. **Planilla** lists every assignment the wheel made, by day, with the
+same undo and a copy of today's.
+
+The table lives in `~/.local/state/reviewwatcher/ruleta.json`, in the same shape
+as the Node version's `estado.json`: copy that file there to keep its history,
+absentees and Jira mapping.
+
 ## Configuration
 
 The gear in the popover opens the settings: polling interval, which events
@@ -211,10 +248,13 @@ patterns. Changes apply at once and are saved to
 | `jira.notifyOnAssigneeChange` | `true` | Ping when a ticket is assigned or unassigned. |
 | `jira.notifyOnComment` | `true` | Ping when someone else comments. |
 | `jira.showDoneTickets` | `false` | List finished tickets too; the ✓ in the Epic tab toggles it. |
+| `roulette.teamsGroup` | empty | GitLab group whose subgroups are the roulette's teams, such as `acme/teams`. |
+| `roulette.loadJQL` | empty | Open tickets counted per player for **Compensada**, such as `project = PROJ AND statusCategory != Done AND assignee IS NOT EMPTY`; empty keeps the odds even. |
 
 `host`, `username`, `jira.site` and `jira.email` are set by `install.sh` and shown
-read-only in the settings. The settings window rewrites the file, so edit it by hand
-only to change those four, then restart:
+read-only in the settings; `roulette.teamsGroup` and `roulette.loadJQL` are yours to
+fill in. The settings window rewrites the file, so edit it by hand only to change
+those, then restart:
 
 ```sh
 launchctl kickstart -k "gui/$UID/app.reviewwatcher"
@@ -228,6 +268,8 @@ that file.
 
 - Log: `~/Library/Logs/reviewwatcher.log` — approvals and merges made from the
   menu bar are logged there too.
+- Roulette: `~/.local/state/reviewwatcher/ruleta.json` — pool JQL, absentees,
+  Jira users and the log of assignments.
 - Epic state: `~/.local/state/reviewwatcher/epic.json` — the last status,
   assignee and comment seen on each ticket, per followed epic.
 - Seen state: `~/.local/state/reviewwatcher/seen.json` — delete it to re-announce

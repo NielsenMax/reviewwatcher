@@ -8,6 +8,8 @@ struct Ticket: Identifiable, Equatable {
     let status: TicketStatus
     let assignee: Person?
     let priority: String?
+    /// Empty unless the search asked for labels.
+    let labels: [String]
 
     var id: String { key }
 
@@ -84,6 +86,7 @@ extension Ticket: Decodable {
         let status: Status
         let assignee: Person?
         let priority: Priority?
+        let labels: [String]?
     }
 
     private struct IssueType: Decodable {
@@ -115,5 +118,6 @@ extension Ticket: Decodable {
                               category: TicketStatus.Category(jiraKey: fields.status.statusCategory.key))
         assignee = fields.assignee
         priority = fields.priority?.name
+        labels = fields.labels ?? []
     }
 }

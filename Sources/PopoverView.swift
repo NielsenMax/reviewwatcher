@@ -14,15 +14,20 @@ struct PopoverView: View {
     @ObservedObject var tabs: PopoverTabs
     let reviews: ReviewListView
     let epic: TicketListView
+    let openRoulette: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $tabs.selection) {
-                Text("Reviews").tag(PopoverTabs.Tab.reviews)
-                Text("Epic").tag(PopoverTabs.Tab.epic)
+            HStack(spacing: 10) {
+                Picker("", selection: $tabs.selection) {
+                    Text("Reviews").tag(PopoverTabs.Tab.reviews)
+                    Text("Epic").tag(PopoverTabs.Tab.epic)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                Button(action: openRoulette) { Label("Ruleta", systemImage: "dice") }
+                    .help("Abrir la ruleta de tickets")
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
             .padding(.horizontal, 14)
             .padding(.top, 10)
             switch tabs.selection {

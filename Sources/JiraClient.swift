@@ -12,10 +12,23 @@ struct JiraClient {
         return found
     }
 
-    /// Without a limit, every page of results is fetched.
-    func search(_ jql: String, limit: Int? = nil) throws -> [Ticket] {
+    /// Without a limit, every page of results is fetched. Without fields, acli returns type, key, assignee,
+    /// priority, status and summary.
+    func search(_ jql: String, fields: [String]? = nil, limit: Int? = nil) throws -> [Ticket] {
         let scope = limit.map { ["--limit", String($0)] } ?? ["--paginate"]
-        return try decode([Ticket].self, from: runAcli(["jira", "workitem", "search", "--jql", jql, "--json"] + scope))
+        let fieldList = fields.map { ["--fields", $0.joined(separator: ",")] } ?? []
+        let arguments = ["jira", "workitem", "search", "--jql", jql, "--json"] + fieldList + scope
+        return try decode([Ticket].self, from: runAcli(arguments))
+    }
+
+    /// acli prints a bare null, not an issue without a parent field, when the issue has no parent.
+    func parent(of key: String) throws -> ParentLink? {
+        try decode(ParentView?.self, from: runAcli(["jira", "workitem", "view", key, "--fields", "parent", "--json"]))?
+            .fields.parent
+    }
+
+    func assign(_ key: String, toAccount accountID: String) throws {
+        try runChange(["jira", "workitem", "assign", "--key", key, "--assignee", accountID])
     }
 
     /// Each `view` spends a second or more on acli start-up and the round trip, so they run side by side.
@@ -103,5 +116,41 @@ struct JiraClient {
             let status: String
             let message: String?
         }
+    }
+}
+
+struct ParentLink: Decodable {
+    let key: String
+    let summary: String
+    /// 1 for an epic, 0 for a story or task, -1 for a subtask.
+    let hierarchyLevel: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case key, fields
+    }
+
+    private struct Fields: Decodable {
+        let summary: String?
+        let issuetype: IssueType
+    }
+
+    private struct IssueType: Decodable {
+        let hierarchyLevel: Int
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        key = try container.decode(String.self, forKey: .key)
+        let fields = try container.decode(Fields.self, forKey: .fields)
+        summary = fields.summary ?? ""
+        hierarchyLevel = fields.issuetype.hierarchyLevel
+    }
+}
+
+private struct ParentView: Decodable {
+    let fields: Fields
+
+    struct Fields: Decodable {
+        let parent: ParentLink?
     }
 }

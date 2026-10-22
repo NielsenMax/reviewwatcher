@@ -14,6 +14,7 @@ struct Config {
     var autoApproveVersionBumps: Bool
     var collapsedFilePatterns: [String]
     var jira: JiraConfig
+    var roulette: RouletteConfig
 }
 
 extension Config: Codable {
@@ -22,7 +23,7 @@ extension Config: Codable {
         case notifyOnNewReviewRequest, notifyOnApprovalRemoved, notifyOnPipelineFixed, notifyOnActivity
         case notifyBacklogOnFirstRun
         case notifyOnlyWhen, autoApproveReleases, autoApproveVersionBumps, collapsedFilePatterns
-        case jira
+        case jira, roulette
     }
 
     init(from decoder: Decoder) throws {
@@ -42,6 +43,7 @@ extension Config: Codable {
         autoApproveVersionBumps = try container.decodeIfPresent(Bool.self, forKey: .autoApproveVersionBumps) ?? false
         collapsedFilePatterns = try container.decodeIfPresent([String].self, forKey: .collapsedFilePatterns) ?? ["*test*", "*spec/*"]
         jira = try container.decodeIfPresent(JiraConfig.self, forKey: .jira) ?? JiraConfig()
+        roulette = try container.decodeIfPresent(RouletteConfig.self, forKey: .roulette) ?? RouletteConfig()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -59,6 +61,7 @@ extension Config: Codable {
         try container.encode(autoApproveVersionBumps, forKey: .autoApproveVersionBumps)
         try container.encode(collapsedFilePatterns, forKey: .collapsedFilePatterns)
         try container.encode(jira, forKey: .jira)
+        try container.encode(roulette, forKey: .roulette)
     }
 
     static func load() throws -> Config {

@@ -11,7 +11,7 @@ final class StatusItemController: NSObject {
     private var badgeUpdates: AnyCancellable?
 
     init(list: ReviewList, tickets: TicketList, epicSearch: EpicSearch, settings: Settings,
-         diffWindows: DiffWindows, settingsWindow: SettingsWindow) {
+         diffWindows: DiffWindows, settingsWindow: SettingsWindow, rouletteWindow: RouletteWindow) {
         self.list = list
         self.tickets = tickets
         super.init()
@@ -19,7 +19,12 @@ final class StatusItemController: NSObject {
         let reviews = ReviewListView(list: list, openDiff: diffWindows.show, openSettings: settingsWindow.show)
         let epic = TicketListView(list: tickets, settings: settings, search: epicSearch,
                                   openSettings: settingsWindow.show)
-        let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic))
+        let openRoulette = { [popover] in
+            popover.performClose(nil)
+            rouletteWindow.show()
+        }
+        let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic,
+                                                             openRoulette: openRoulette))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
         popover.behavior = .transient

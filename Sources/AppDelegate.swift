@@ -34,7 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                               epicSearch: EpicSearch(client: jiraClient),
                                               settings: settings,
                                               diffWindows: DiffWindows(list: list, client: client, settings: settings),
-                                              settingsWindow: SettingsWindow(settings: settings))
+                                              settingsWindow: SettingsWindow(settings: settings),
+                                              rouletteWindow: RouletteWindow {
+                                                  RouletteModel(service: try RouletteService(gitlab: client, jira: jiraClient,
+                                                                                             config: config.roulette,
+                                                                                             emailDomain: config.jira.emailDomain),
+                                                                jiraSite: config.jira.site)
+                                              })
             poller.start()
             epicPoller.start()
             observeSleep(poller, epicPoller)
