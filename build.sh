@@ -40,7 +40,8 @@ rm -rf "$ICONSET"
 
 # Notification attachments: the same mark recoloured, since macOS cannot tint a banner.
 STATUS_SVG="$ROOT/build/status.svg"
-for variant in "success:#4ADE80:#16A34A" "failed:#FB7185:#DC2626" "pending:#FCD34D:#D97706"; do
+for variant in "success:#4ADE80:#16A34A" "failed:#FB7185:#DC2626" "pending:#FCD34D:#D97706" \
+               "todo:#D1D5DB:#6B7280" "progress:#60A5FA:#2563EB"; do
     name="${variant%%:*}"
     colors="${variant#*:}"
     sed -e "s/#FC8A3A/${colors%%:*}/" -e "s/#E24329/${colors##*:}/" "$ROOT/Resources/logo.svg" > "$STATUS_SVG"

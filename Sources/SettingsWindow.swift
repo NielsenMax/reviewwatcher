@@ -55,7 +55,7 @@ private struct SettingsView: View {
                 }
             }
 
-            Section("Notify me when") {
+            Section("Notify me about reviews when") {
                 Toggle("I'm asked to review a merge request", isOn: $settings.config.notifyOnNewReviewRequest)
                 Toggle("New commits remove my approval", isOn: $settings.config.notifyOnApprovalRemoved)
                 Toggle("A pipeline that was failing passes", isOn: $settings.config.notifyOnPipelineFixed)
@@ -108,6 +108,46 @@ private struct SettingsView: View {
                     """)
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                if settings.config.jira.isSetUp {
+                    LabeledContent("Jira", value: settings.config.jira.site)
+                    LabeledContent("You", value: settings.config.jira.email)
+                    HStack {
+                        TextField("Epic", text: $settings.epicDraft, prompt: Text("PROJ-123"))
+                            .onSubmit(settings.watchEpicDraft)
+                        Button("Watch", action: settings.watchEpicDraft)
+                            .disabled(!settings.isEpicDraftWatchable)
+                    }
+                } else {
+                    Text("Log in with acli jira auth login, then run install.sh again.")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Epic tab")
+            } footer: {
+                Text("""
+                    Watches the ticket, its children and their subtasks. Any key works: a story's branch is the \
+                    story and its subtasks. Site and user come from your acli login.
+                    """)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle("A ticket is added to the epic", isOn: $settings.config.jira.notifyOnNewTicket)
+                Toggle("A ticket changes status", isOn: $settings.config.jira.notifyOnStatusChange)
+                Toggle("A ticket is assigned or unassigned", isOn: $settings.config.jira.notifyOnAssigneeChange)
+                Toggle("Someone else comments", isOn: $settings.config.jira.notifyOnComment)
+            } header: {
+                Text("Notify me about the epic when")
+            } footer: {
+                Text("""
+                    Moves and assignments you make from the menu bar stay quiet. Ones you make in Jira itself \
+                    notify like anyone else's: Jira does not say who made a change without reading its history.
+                    """)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!settings.config.jira.isSetUp)
 
             if let failure = settings.saveFailure {
                 Text(failure).foregroundStyle(.red)

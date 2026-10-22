@@ -6,15 +6,18 @@ final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private let list: ReviewList
+    private let tickets: TicketList
+    private let tabs = PopoverTabs()
     private var badgeUpdates: AnyCancellable?
 
-    init(list: ReviewList, diffWindows: DiffWindows, settingsWindow: SettingsWindow) {
+    init(list: ReviewList, tickets: TicketList, settings: Settings, diffWindows: DiffWindows, settingsWindow: SettingsWindow) {
         self.list = list
+        self.tickets = tickets
         super.init()
 
-        let host = NSHostingController(rootView: ReviewListView(list: list,
-                                                                openDiff: diffWindows.show,
-                                                                openSettings: settingsWindow.show))
+        let reviews = ReviewListView(list: list, openDiff: diffWindows.show, openSettings: settingsWindow.show)
+        let epic = TicketListView(list: tickets, settings: settings, openSettings: settingsWindow.show)
+        let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
         popover.behavior = .transient
@@ -49,6 +52,7 @@ final class StatusItemController: NSObject {
             return
         }
         list.refresh()
+        tickets.refresh()
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }

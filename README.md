@@ -7,6 +7,10 @@ approve or merge the small ones without leaving the desk.
 
 Polls through `glab`, so it inherits whatever instance and credentials glab uses.
 
+An **Epic** tab in the same popover follows one Jira epic through `acli`: its
+children and their subtasks, with a notification whenever one is added, changes
+status, is reassigned or gets a comment.
+
 ## Install
 
 Needs an Apple Silicon Mac on macOS 13 or later, the Command Line Tools
@@ -21,8 +25,18 @@ glab auth login
 
 `install.sh` builds the app on your machine and writes a config for the GitLab
 user `glab` is logged in as. It then asks for a personal access token with `api`
-scope, which Approve and Merge need to write, and loads a LaunchAgent so the
-watcher starts at login. For a self-managed GitLab, run
+scope, which Approve and Merge need to write; leave it empty to use glab's own
+login when that already carries `api`. Last it loads a LaunchAgent so the
+watcher starts at login.
+
+For the Epic tab, log in to Jira through acli before installing. `install.sh`
+reads the site and your email from that login, and `EPIC` picks the first epic:
+
+```sh
+brew install atlassian/acli/acli
+acli jira auth login
+EPIC=PROJ-123 ./install.sh
+``` For a self-managed GitLab, run
 `GITLAB_HOST=gitlab.example.com ./install.sh`.
 
 Everyone builds their own copy. The app is signed ad hoc, so Gatekeeper blocks a
@@ -122,6 +136,43 @@ at the commit the diff was taken from.
 
 The window takes ⌘W to close and ⌘C to copy a selected line.
 
+## Epic tab
+
+The tab lists the epic's children, each followed by its subtasks: work in
+progress first, then what waits, then what is done. Finished tickets are hidden
+until the ✓ in the header shows them; a finished child stays while a subtask of
+it is open. The header counts what is done and opens the epic in Jira.
+
+Each row offers:
+
+| Control | Does |
+| --- | --- |
+| 🧭 | Opens the ticket in Jira. |
+| **Move** | Transitions the ticket to the chosen status. |
+| **Assign to me** / **Unassign** | Takes the ticket, or lets it go once it is yours. |
+
+acli cannot list a ticket's transitions, so **Move** offers every status the
+project used in its 200 most recently updated tickets. Jira refuses one the
+workflow does not allow from where the ticket stands, and the row shows why.
+
+A ticket raises one notification per poll, listing everything that changed:
+
+| When | Looks like |
+| --- | --- |
+| A ticket is filed under the epic or one of its children | ⚪ New in PROJ-123 |
+| It changes status | 🔵 To Do → In Progress |
+| It is assigned or unassigned | ⚪ Assigned to you |
+| Someone else comments | 🔵 Ana commented — the comment is the body |
+
+The dot follows the ticket's status category: ⚪ to do, 🔵 in progress, 🟢 done.
+Moves and assignments made from the menu bar stay quiet. Ones you make in Jira
+itself notify like anyone else's, since acli does not say who made a change.
+
+Each poll runs two searches to read the tree and one more for tickets updated
+since the last poll; only those, and tickets seen for the first time, are opened
+one by one to read their comments. Changing the epic starts silently: the first
+poll of an epic only takes note of what is there.
+
 ## Configuration
 
 The gear in the popover opens the settings: polling interval, which events
@@ -145,10 +196,18 @@ patterns. Changes apply at once and are saved to
 | `autoApproveReleases` | `false` | Approve releases from `develop`; see [Auto-approval](#auto-approval). |
 | `autoApproveVersionBumps` | `false` | Approve merge requests that only bump image tags. |
 | `collapsedFilePatterns` | `["*test*", "*spec/*"]` | Files the diff window opens collapsed; see [Diff window](#diff-window). |
+| `jira.site` | from `acli jira auth status` | Jira Cloud site the ticket links point at. |
+| `jira.email` | from `acli jira auth status` | Who "you" is, for assignments and your own comments. |
+| `jira.epic` | `EPIC`, or empty | Ticket whose branch the Epic tab follows; set it in the settings. |
+| `jira.notifyOnNewTicket` | `true` | Ping when a ticket is filed under the epic. |
+| `jira.notifyOnStatusChange` | `true` | Ping when a ticket changes status. |
+| `jira.notifyOnAssigneeChange` | `true` | Ping when a ticket is assigned or unassigned. |
+| `jira.notifyOnComment` | `true` | Ping when someone else comments. |
+| `jira.showDoneTickets` | `false` | List finished tickets too; the ✓ in the Epic tab toggles it. |
 
-`host` and `username` are set by `install.sh` and shown read-only in the settings.
-The settings window rewrites the file, so edit it by hand only to change those two,
-then restart:
+`host`, `username`, `jira.site` and `jira.email` are set by `install.sh` and shown
+read-only in the settings. The settings window rewrites the file, so edit it by hand
+only to change those four, then restart:
 
 ```sh
 launchctl kickstart -k "gui/$UID/app.reviewwatcher"
@@ -162,6 +221,8 @@ that file.
 
 - Log: `~/Library/Logs/reviewwatcher.log` — approvals and merges made from the
   menu bar are logged there too.
+- Epic state: `~/.local/state/reviewwatcher/epic.json` — the last status,
+  assignee and comment seen on each ticket of the watched epic.
 - Seen state: `~/.local/state/reviewwatcher/seen.json` — delete it to re-announce
   everything currently open.
 

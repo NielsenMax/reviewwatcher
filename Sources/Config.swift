@@ -13,6 +13,7 @@ struct Config {
     var autoApproveReleases: Bool
     var autoApproveVersionBumps: Bool
     var collapsedFilePatterns: [String]
+    var jira: JiraConfig
 }
 
 extension Config: Codable {
@@ -21,6 +22,7 @@ extension Config: Codable {
         case notifyOnNewReviewRequest, notifyOnApprovalRemoved, notifyOnPipelineFixed, notifyOnActivity
         case notifyBacklogOnFirstRun
         case notifyOnlyWhen, autoApproveReleases, autoApproveVersionBumps, collapsedFilePatterns
+        case jira
     }
 
     init(from decoder: Decoder) throws {
@@ -39,6 +41,7 @@ extension Config: Codable {
         autoApproveReleases = try container.decodeIfPresent(Bool.self, forKey: .autoApproveReleases) ?? false
         autoApproveVersionBumps = try container.decodeIfPresent(Bool.self, forKey: .autoApproveVersionBumps) ?? false
         collapsedFilePatterns = try container.decodeIfPresent([String].self, forKey: .collapsedFilePatterns) ?? ["*test*", "*spec/*"]
+        jira = try container.decodeIfPresent(JiraConfig.self, forKey: .jira) ?? JiraConfig()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -55,6 +58,7 @@ extension Config: Codable {
         try container.encode(autoApproveReleases, forKey: .autoApproveReleases)
         try container.encode(autoApproveVersionBumps, forKey: .autoApproveVersionBumps)
         try container.encode(collapsedFilePatterns, forKey: .collapsedFilePatterns)
+        try container.encode(jira, forKey: .jira)
     }
 
     static func load() throws -> Config {
@@ -77,11 +81,13 @@ extension Config: Codable {
 enum WatcherError: LocalizedError {
     case setup(String)
     case glab(String)
+    case acli(String)
 
     var errorDescription: String? {
         switch self {
         case .setup(let detail): return detail
         case .glab(let detail): return "glab failed: \(detail)"
+        case .acli(let detail): return "acli failed: \(detail)"
         }
     }
 }
