@@ -4,10 +4,12 @@ import SwiftUI
 /// The single settings window, built on first use and brought forward after that.
 final class SettingsWindow {
     private let settings: Settings
+    private let updater: Updater
     private var window: NSWindow?
 
-    init(settings: Settings) {
+    init(settings: Settings, updater: Updater) {
         self.settings = settings
+        self.updater = updater
     }
 
     func show() {
@@ -18,7 +20,7 @@ final class SettingsWindow {
     }
 
     private func makeWindow() -> NSWindow {
-        let host = NSHostingController(rootView: SettingsView(settings: settings))
+        let host = NSHostingController(rootView: SettingsView(settings: settings, updater: updater))
         host.sizingOptions = .minSize
         let window = NSWindow(contentViewController: host)
         window.title = "Review Watcher Settings"
@@ -32,6 +34,7 @@ final class SettingsWindow {
 
 private struct SettingsView: View {
     @ObservedObject var settings: Settings
+    @ObservedObject var updater: Updater
 
     private static let standardIntervals: [TimeInterval] = [30, 60, 120, 300, 600, 900]
 
@@ -145,12 +148,42 @@ private struct SettingsView: View {
             }
             .disabled(!settings.config.jira.isSetUp)
 
+            Section {
+                LabeledContent("Version", value: updater.runningVersion)
+                LabeledContent("Latest") { updateStatus }
+                Button("Check now", action: updater.checkNow)
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("""
+                    Checks GitHub for a newer release tag every hour. Updating, from the menu bar, builds that \
+                    release from source on this Mac and restarts into it.
+                    """)
+                    .foregroundStyle(.secondary)
+            }
+
             if let failure = settings.saveFailure {
                 Text(failure).foregroundStyle(.red)
             }
         }
         .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 360)
+    }
+
+    @ViewBuilder
+    private var updateStatus: some View {
+        switch updater.state {
+        case .unchecked:
+            Text("Checking…").foregroundStyle(.secondary)
+        case .upToDate(let checkedAt):
+            Text("Up to date · checked \(checkedAt.formatted(date: .omitted, time: .shortened))")
+        case .checkFailed(let message), .installFailed(_, let message):
+            Text(message).foregroundStyle(.red).lineLimit(3).help(message)
+        case .available(let release):
+            Text("\(release.version.description) is available from the menu bar")
+        case .installing(_, let step):
+            Text(step)
+        }
     }
 
     /// A value set by hand in config.json stays selectable even when it is not one of the standard steps.

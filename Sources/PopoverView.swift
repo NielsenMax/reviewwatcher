@@ -13,6 +13,7 @@ final class PopoverTabs: ObservableObject {
 
 struct PopoverView: View {
     @ObservedObject var tabs: PopoverTabs
+    let update: UpdateBanner
     let reviews: ReviewListView
     let epic: TicketListView
     let argo: ArgoListView
@@ -20,6 +21,7 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            update
             HStack(spacing: 10) {
                 Picker("", selection: $tabs.selection) {
                     Text("Reviews").tag(PopoverTabs.Tab.reviews)

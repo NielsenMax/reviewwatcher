@@ -6,6 +6,9 @@ APP_NAME="ReviewWatcher"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP="$ROOT/build/$APP_NAME.app"
 ICONSET="$ROOT/build/$APP_NAME.iconset"
+# A release tarball carries no git history, so the updater passes the release's version in.
+VERSION="${VERSION:-$(git -C "$ROOT" describe --tags --match 'v[0-9]*' --dirty 2>/dev/null || echo dev)}"
+VERSION="${VERSION#v}"
 
 command -v rsvg-convert >/dev/null || { echo "rsvg-convert is missing: brew install librsvg" >&2; exit 1; }
 
@@ -23,7 +26,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>$APP_NAME</string>
     <key>CFBundleIconFile</key><string>$APP_NAME</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0</string>
+    <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundleVersion</key><string>3</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
