@@ -43,7 +43,9 @@ reads the site and your email from that login, and `EPIC` follows a first epic:
 brew install atlassian/acli/acli
 acli jira auth login
 EPIC=PROJ-123 ./install.sh
-``` For a self-managed GitLab, run
+```
+
+For a self-managed GitLab, run
 `GITLAB_HOST=gitlab.example.com ./install.sh`.
 
 Everyone builds their own copy. The app is signed ad hoc, so Gatekeeper blocks a
