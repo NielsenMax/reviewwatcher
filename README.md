@@ -290,7 +290,8 @@ that file.
 ## Operating
 
 - Log: `~/Library/Logs/reviewwatcher.log` — approvals and merges made from the
-  menu bar are logged there too.
+  menu bar are logged there too, as is the full output of an update that failed
+  to build.
 - Roulette: `~/.local/state/reviewwatcher/ruleta.json` — pool JQL, absentees,
   Jira users and the log of assignments.
 - Epic state: `~/.local/state/reviewwatcher/epic.json` — the last status,
@@ -300,6 +301,37 @@ that file.
 
 Merged and closed merge requests drop out of the state file on the next poll, so
 reopening one announces it again.
+
+## Updates
+
+The app checks this repository's tags on GitHub at launch and every hour. When
+a `vX.Y.Z` tag is newer than the running build, it notifies once (clicking the
+notification opens what changed on GitHub) and shows **Update** above the
+popover's tabs. Nothing installs until you click it.
+
+Updating downloads the source of the commit the tag pointed to when it was
+checked, builds it with that release's `build.sh` in
+`~/Library/Caches/reviewwatcher/update`, replaces the installed app and restarts
+the LaunchAgent. It needs the same Command Line Tools and librsvg as the first
+install. The config, the token, the state files and the LaunchAgent stay as they
+are; a release that changes `install.sh` says so in its notes, and needs
+`./install.sh` run by hand. Rebuilding can also cost the notification grant; see
+[Notification permission](#notification-permission).
+
+The settings show the running version: a release such as `1.2.3`, or
+`git describe` output such as `1.2.3-4-gabc1234-dirty` for a local build, which
+is offered only releases newer than `1.2.3`. **Check now** checks without waiting
+for the hour.
+
+To publish a release, tag a commit on `main` and push the tag:
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+A `v*` tag cannot be moved or deleted once pushed, so a published release always
+builds the same commit. A mistake is fixed with a new version.
 
 ## Notification permission
 

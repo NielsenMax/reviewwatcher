@@ -86,6 +86,7 @@ enum WatcherError: LocalizedError {
     case glab(String)
     case acli(String)
     case argocd(String)
+    case github(String)
 
     var errorDescription: String? {
         switch self {
@@ -93,6 +94,7 @@ enum WatcherError: LocalizedError {
         case .glab(let detail): return "glab failed: \(detail)"
         case .acli(let detail): return "acli failed: \(detail)"
         case .argocd(let detail): return "argocd failed: \(detail)"
+        case .github(let detail): return "GitHub request failed: \(detail)"
         }
     }
 }

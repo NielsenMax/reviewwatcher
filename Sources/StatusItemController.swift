@@ -12,7 +12,7 @@ final class StatusItemController: NSObject {
     private var badgeUpdates: AnyCancellable?
 
     init(list: ReviewList, tickets: TicketList, epicSearch: EpicSearch, argo: ArgoList, settings: Settings,
-         diffWindows: DiffWindows, settingsWindow: SettingsWindow, rouletteWindow: RouletteWindow) {
+         updater: Updater, diffWindows: DiffWindows, settingsWindow: SettingsWindow, rouletteWindow: RouletteWindow) {
         self.list = list
         self.tickets = tickets
         self.argo = argo
@@ -25,7 +25,8 @@ final class StatusItemController: NSObject {
             popover.performClose(nil)
             rouletteWindow.show()
         }
-        let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic,
+        let host = NSHostingController(rootView: PopoverView(tabs: tabs, update: UpdateBanner(updater: updater),
+                                                             reviews: reviews, epic: epic,
                                                              argo: ArgoListView(list: argo, openSettings: settingsWindow.show),
                                                              openRoulette: openRoulette))
         host.sizingOptions = .preferredContentSize

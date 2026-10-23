@@ -5,12 +5,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private var poller: ReviewPoller?
     private var epicPoller: EpicPoller?
     private var statusItem: StatusItemController?
+    private var updater: Updater?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
         NSApp.mainMenu = Self.keyEquivalentsMenu()
         let notifier = Notifier()
         notifier.requestAuthorization()
+        let updater = Updater(notifier: notifier)
 
         do {
             let config = try Config.load()
@@ -34,8 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                               epicSearch: EpicSearch(client: jiraClient),
                                               argo: ArgoList(client: ArgoClient()),
                                               settings: settings,
+                                              updater: updater,
                                               diffWindows: DiffWindows(list: list, client: client, settings: settings),
-                                              settingsWindow: SettingsWindow(settings: settings),
+                                              settingsWindow: SettingsWindow(settings: settings, updater: updater),
                                               rouletteWindow: RouletteWindow {
                                                   RouletteModel(service: try RouletteService(gitlab: client, jira: jiraClient,
                                                                                              config: config.roulette,
@@ -44,9 +47,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                               })
             poller.start()
             epicPoller.start()
+            updater.start()
             observeSleep(poller, epicPoller)
             self.poller = poller
             self.epicPoller = epicPoller
+            self.updater = updater
         } catch {
             Log.write("startup failed: \(error.localizedDescription)")
             NSApplication.shared.terminate(nil)

@@ -7,6 +7,7 @@ enum Paths {
     static let stateFile = home(".local/state/reviewwatcher/seen.json")
     static let epicStateFile = home(".local/state/reviewwatcher/epic.json")
     static let rouletteStateFile = home(".local/state/reviewwatcher/ruleta.json")
+    static let updateDirectory = home("Library/Caches/reviewwatcher/update")
 
     private static func home(_ relative: String) -> URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(relative)

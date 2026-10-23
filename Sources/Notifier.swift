@@ -94,6 +94,22 @@ struct Notifier {
         }
     }
 
+    /// Installing waits for a click in the popover, so the notification leads to what the release would change.
+    func post(_ release: Release, changes: URL) {
+        let content = UNMutableNotificationContent()
+        content.title = "ReviewWatcher \(release.version) is available"
+        content.body = "Update from the menu bar. Click to see what changed."
+        content.sound = .default
+        content.userInfo = [Self.urlKey: changes.absoluteString]
+
+        let request = UNNotificationRequest(identifier: "update-\(release.version)", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                Log.write("could not post notification for release \(release.version): \(error.localizedDescription)")
+            }
+        }
+    }
+
     private func body(for ticket: Ticket, changes: [TicketChange]) -> String {
         for case .commented(let comments) in changes {
             if let latest = comments.max(by: { $0.id < $1.id }) {
