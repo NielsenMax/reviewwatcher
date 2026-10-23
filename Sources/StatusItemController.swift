@@ -6,15 +6,28 @@ final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private let list: ReviewList
+    private let tickets: TicketList
+    private let argo: ArgoList
+    private let tabs = PopoverTabs()
     private var badgeUpdates: AnyCancellable?
 
-    init(list: ReviewList, diffWindows: DiffWindows, settingsWindow: SettingsWindow) {
+    init(list: ReviewList, tickets: TicketList, epicSearch: EpicSearch, argo: ArgoList, settings: Settings,
+         diffWindows: DiffWindows, settingsWindow: SettingsWindow, rouletteWindow: RouletteWindow) {
         self.list = list
+        self.tickets = tickets
+        self.argo = argo
         super.init()
 
-        let host = NSHostingController(rootView: ReviewListView(list: list,
-                                                                openDiff: diffWindows.show,
-                                                                openSettings: settingsWindow.show))
+        let reviews = ReviewListView(list: list, openDiff: diffWindows.show, openSettings: settingsWindow.show)
+        let epic = TicketListView(list: tickets, settings: settings, search: epicSearch,
+                                  openSettings: settingsWindow.show)
+        let openRoulette = { [popover] in
+            popover.performClose(nil)
+            rouletteWindow.show()
+        }
+        let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic,
+                                                             argo: ArgoListView(list: argo, openSettings: settingsWindow.show),
+                                                             openRoulette: openRoulette))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
         popover.behavior = .transient
@@ -49,6 +62,8 @@ final class StatusItemController: NSObject {
             return
         }
         list.refresh()
+        tickets.refresh()
+        if tabs.selection == .argo { argo.refresh() }
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }

@@ -42,15 +42,34 @@ else
     echo "kept existing $CONFIG_DIR/config.json"
 fi
 
-if [[ ! -f "$CONFIG_DIR/token" ]]; then
-    if [[ -n "${GITLAB_TOKEN:-}" ]]; then
-        printf '%s' "$GITLAB_TOKEN" > "$CONFIG_DIR/token"
+if [[ -z "$(plutil -extract jira.site raw -o - "$CONFIG_DIR/config.json" 2>/dev/null)" ]]; then
+    auth="$(command -v acli >/dev/null && acli jira auth status 2>&1 || true)"
+    site="$(awk '$1 == "Site:" { print $2 }' <<<"$auth")"
+    email="$(awk '$1 == "Email:" { print $2 }' <<<"$auth")"
+    if [[ -n "$site" && -n "$email" ]]; then
+        epics="[]"
+        [[ -z "${EPIC:-}" ]] || epics="[\"$EPIC\"]"
+        plutil -replace jira -json "{\"site\":\"$site\",\"email\":\"$email\",\"epics\":$epics}" "$CONFIG_DIR/config.json"
+        echo "Epic tab reads Jira on $site as $email"
     else
-        read -rsp "GitLab personal access token (api scope): " token && echo
-        printf '%s' "$token" > "$CONFIG_DIR/token"
+        echo "Epic tab off: install acli, run 'acli jira auth login', then ./install.sh again"
     fi
-    chmod 600 "$CONFIG_DIR/token"
-    echo "stored token in $CONFIG_DIR/token (mode 600)"
+else
+    echo "kept existing Jira settings"
+fi
+
+if [[ ! -f "$CONFIG_DIR/token" ]]; then
+    token="${GITLAB_TOKEN:-}"
+    if [[ -z "$token" ]]; then
+        read -rsp "GitLab personal access token (api scope; empty uses glab's own login): " token && echo || true
+    fi
+    if [[ -n "$token" ]]; then
+        printf '%s' "$token" > "$CONFIG_DIR/token"
+        chmod 600 "$CONFIG_DIR/token"
+        echo "stored token in $CONFIG_DIR/token (mode 600)"
+    else
+        echo "no token stored: the watcher uses glab's own login"
+    fi
 else
     echo "kept existing $CONFIG_DIR/token"
 fi

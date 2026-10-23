@@ -28,6 +28,15 @@ final class Settings: ObservableObject {
         self.onChange = onChange
     }
 
+    func follow(_ epic: String) {
+        guard !config.jira.epics.contains(epic) else { return }
+        config.jira.epics.append(epic)
+    }
+
+    func unfollow(_ epic: String) {
+        config.jira.epics.removeAll { $0 == epic }
+    }
+
     private func persist() {
         do {
             try config.save()

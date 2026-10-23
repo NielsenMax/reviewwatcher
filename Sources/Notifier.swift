@@ -57,7 +57,7 @@ struct Notifier {
         content.sound = .default
         content.userInfo = [Self.urlKey: mergeRequest.webURL]
         content.threadIdentifier = mergeRequest.key
-        if let attachment = attachment(for: event.pipeline) {
+        if let imageName = event.pipeline?.imageName, let attachment = attachment(named: imageName) {
             content.attachments = [attachment]
         }
 
@@ -70,19 +70,51 @@ struct Notifier {
         }
     }
 
-    private func attachment(for status: PipelineStatus?) -> UNNotificationAttachment? {
-        guard let status,
-              let bundled = Bundle.main.url(forResource: status.imageName, withExtension: "png") else {
+    /// One notification per ticket and poll, carrying every change it went through since the last one.
+    func post(_ ticket: Ticket, epic: String, changes: [TicketChange], jira: JiraConfig) {
+        let content = UNMutableNotificationContent()
+        let headlines = changes.map { $0.headline(for: ticket, epic: epic, me: jira.email) }
+        content.title = "\(ticket.status.category.emoji) " + headlines.joined(separator: " · ")
+        content.subtitle = "\(ticket.key) · \(ticket.summary)"
+        content.body = body(for: ticket, changes: changes)
+        content.sound = .default
+        content.threadIdentifier = ticket.key
+        if let url = jira.browseURL(for: ticket.key) {
+            content.userInfo = [Self.urlKey: url.absoluteString]
+        }
+        if let attachment = attachment(named: ticket.status.category.imageName) {
+            content.attachments = [attachment]
+        }
+
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                Log.write("could not post notification for \(ticket.key): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func body(for ticket: Ticket, changes: [TicketChange]) -> String {
+        for case .commented(let comments) in changes {
+            if let latest = comments.max(by: { $0.id < $1.id }) {
+                return "\(latest.author.displayName): \(latest.text)"
+            }
+        }
+        return [ticket.type, ticket.status.name, ticket.assignee?.displayName ?? "Unassigned"].joined(separator: " · ")
+    }
+
+    private func attachment(named imageName: String) -> UNNotificationAttachment? {
+        guard let bundled = Bundle.main.url(forResource: imageName, withExtension: "png") else {
             return nil
         }
         // The notification store takes ownership of the file, so the bundled original is never handed over.
         let handover = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("\(status.imageName)-\(UUID().uuidString).png")
+            .appendingPathComponent("\(imageName)-\(UUID().uuidString).png")
         do {
             try FileManager.default.copyItem(at: bundled, to: handover)
             return try UNNotificationAttachment(identifier: "", url: handover, options: nil)
         } catch {
-            Log.write("could not attach \(status.imageName): \(error.localizedDescription)")
+            Log.write("could not attach \(imageName): \(error.localizedDescription)")
             return nil
         }
     }

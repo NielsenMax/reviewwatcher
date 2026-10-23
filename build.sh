@@ -40,7 +40,8 @@ rm -rf "$ICONSET"
 
 # Notification attachments: the same mark recoloured, since macOS cannot tint a banner.
 STATUS_SVG="$ROOT/build/status.svg"
-for variant in "success:#4ADE80:#16A34A" "failed:#FB7185:#DC2626" "pending:#FCD34D:#D97706"; do
+for variant in "success:#4ADE80:#16A34A" "failed:#FB7185:#DC2626" "pending:#FCD34D:#D97706" \
+               "todo:#D1D5DB:#6B7280" "progress:#60A5FA:#2563EB"; do
     name="${variant%%:*}"
     colors="${variant#*:}"
     sed -e "s/#FC8A3A/${colors%%:*}/" -e "s/#E24329/${colors##*:}/" "$ROOT/Resources/logo.svg" > "$STATUS_SVG"
@@ -49,8 +50,8 @@ done
 rm -f "$STATUS_SVG"
 
 # Menu bar glyph: black on clear, so AppKit can tint it as a template for light and dark bars.
-rsvg-convert -w 18 -h 18 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/menubar.png"
-rsvg-convert -w 36 -h 36 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/menubar@2x.png"
+rsvg-convert -w 24 -h 18 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/menubar.png"
+rsvg-convert -w 48 -h 36 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/menubar@2x.png"
 
 swiftc -O \
     -target arm64-apple-macos13.0 \

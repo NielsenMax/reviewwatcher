@@ -7,6 +7,17 @@ approve or merge the small ones without leaving the desk.
 
 Polls through `glab`, so it inherits whatever instance and credentials glab uses.
 
+An **Epic** tab in the same popover follows Jira epics through `acli`: each
+one's children and their subtasks, with a notification whenever one is added,
+changes status, is reassigned or gets a comment.
+
+An **Argo** tab lists the Argo CD applications through the `argocd` CLI and
+syncs them from the menu bar.
+
+The **Ruleta** button beside the tabs opens the ticket roulette: a casino wheel
+that deals the tickets of a Jira search out to the developers in a GitLab group's
+teams, assigning each in Jira as the ball lands.
+
 ## Install
 
 Needs an Apple Silicon Mac on macOS 13 or later, the Command Line Tools
@@ -21,8 +32,18 @@ glab auth login
 
 `install.sh` builds the app on your machine and writes a config for the GitLab
 user `glab` is logged in as. It then asks for a personal access token with `api`
-scope, which Approve and Merge need to write, and loads a LaunchAgent so the
-watcher starts at login. For a self-managed GitLab, run
+scope, which Approve and Merge need to write; leave it empty to use glab's own
+login when that already carries `api`. Last it loads a LaunchAgent so the
+watcher starts at login.
+
+For the Epic tab, log in to Jira through acli before installing. `install.sh`
+reads the site and your email from that login, and `EPIC` follows a first epic:
+
+```sh
+brew install atlassian/acli/acli
+acli jira auth login
+EPIC=PROJ-123 ./install.sh
+``` For a self-managed GitLab, run
 `GITLAB_HOST=gitlab.example.com ./install.sh`.
 
 Everyone builds their own copy. The app is signed ad hoc, so Gatekeeper blocks a
@@ -122,6 +143,101 @@ at the commit the diff was taken from.
 
 The window takes ⌘W to close and ⌘C to copy a selected line.
 
+## Epic tab
+
+The search box at the top finds open epics whose title holds every word typed,
+or any ticket by its key; clicking a result follows it. Each followed epic gets
+a section whose title opens it in Jira, with a count of what is done and an ×
+that stops following it. Following an epic again later starts afresh.
+
+A section lists the epic's children, each followed by its subtasks: work in
+progress first, then what waits, then what is done. Finished tickets are hidden
+until the ✓ in the header shows them; a finished child stays while a subtask of
+it is open.
+
+Each row offers:
+
+| Control | Does |
+| --- | --- |
+| 🧭 | Opens the ticket in Jira. |
+| **Move** | Transitions the ticket to the chosen status. |
+| **Assign to me** / **Unassign** | Takes the ticket, or lets it go once it is yours. |
+
+acli cannot list a ticket's transitions, so **Move** offers every status the
+project used in its 200 most recently updated tickets. Jira refuses one the
+workflow does not allow from where the ticket stands, and the row shows why.
+
+A ticket raises one notification per poll, listing everything that changed:
+
+| When | Looks like |
+| --- | --- |
+| A ticket is filed under the epic or one of its children | ⚪ New in PROJ-123 |
+| It changes status | 🔵 To Do → In Progress |
+| It is assigned or unassigned | ⚪ Assigned to you |
+| Someone else comments | 🔵 Ana commented — the comment is the body |
+
+The dot follows the ticket's status category: ⚪ to do, 🔵 in progress, 🟢 done.
+Moves and assignments made from the menu bar stay quiet. Ones you make in Jira
+itself notify like anyone else's, since acli does not say who made a change.
+
+Every epic is read on its own and all of them at once, so one that fails, say
+deleted or out of your reach, shows its error in its section and leaves the
+others alone. Each read runs two searches for the tree and one more for tickets
+updated since that epic's last poll; only those, and tickets seen for the first
+time, are opened one by one to read their comments. A newly followed epic starts
+silently: its first poll only takes note of what is there.
+
+## Argo tab
+
+The tab reads the applications the current `argocd` context can see, each with
+its sync status, health, auto-sync and, when the last sync failed while the app
+is still out of sync, that sync's error. It shows the out-of-sync ones by
+default, out of sync first under **All**, and the field above narrows them to
+apps whose name, project or destination namespace holds every word typed.
+
+**Sync** asks for a second click within four seconds, then runs
+`argocd app sync <app> --async` with the app's own sync options and no prune.
+The row follows that operation every three seconds until Argo reports it
+finished, and shows the outcome or the error. 🧭 opens the app in Argo CD.
+
+Log in once with `argocd login <server> --sso --grpc-web`. Argo rotates the SSO
+refresh token each time it is used, so the tab runs one argocd command at a time
+and only while it is open or a sync it started is running; when the login
+lapses, the tab says so and a new `argocd login` brings it back.
+
+## Ticket roulette
+
+A native port of the Node roulette, in its own window. Every opening reloads the
+table unless a spin is on it.
+
+**Players** come from the subgroups of the GitLab group in `roulette.teamsGroup`,
+each with the teams they belong to; owners of the group are left out. Each one is
+found in Jira through the issues assigned to `firstlast@domain`, built from the
+GitLab name and the domain of `jira.email`, since acli has no user search; someone
+never assigned anything has no Jira user and cannot play. The **Jugadores** tab's switch takes a person
+off the table for leave or on-call.
+
+**The pool** is whatever the JQL in the **Pozo** tab returns, up to 100 tickets;
+**Buscar** runs a new one and keeps it only if Jira accepts it. The list groups by
+epic or by tag, and **Sortear** on a group makes every spin take the next ticket
+from it until it runs dry.
+
+**A spin** picks a pocket at random. In **Pareja** every seated player has the
+same pocket; **Compensada** shrinks it for whoever holds more of the open tickets
+`roulette.loadJQL` finds. Team chips narrow the table to one team. The ticket shown
+**En juego** is assigned in Jira to the winner the moment the ball is thrown, and
+the result says whether Jira took it; with an empty pool the wheel just draws a
+name. Space spins too.
+
+**The result** offers the wheel and the winner as a 1200×630 PNG for the chat,
+the ticket as text, and **Deshacer**, which unassigns it in Jira and returns it
+to the pool. **Planilla** lists every assignment the wheel made, by day, with the
+same undo and a copy of today's.
+
+The table lives in `~/.local/state/reviewwatcher/ruleta.json`, in the same shape
+as the Node version's `estado.json`: copy that file there to keep its history,
+absentees and Jira mapping.
+
 ## Configuration
 
 The gear in the popover opens the settings: polling interval, which events
@@ -145,10 +261,21 @@ patterns. Changes apply at once and are saved to
 | `autoApproveReleases` | `false` | Approve releases from `develop`; see [Auto-approval](#auto-approval). |
 | `autoApproveVersionBumps` | `false` | Approve merge requests that only bump image tags. |
 | `collapsedFilePatterns` | `["*test*", "*spec/*"]` | Files the diff window opens collapsed; see [Diff window](#diff-window). |
+| `jira.site` | from `acli jira auth status` | Jira Cloud site the ticket links point at. |
+| `jira.email` | from `acli jira auth status` | Who "you" is, for assignments and your own comments. |
+| `jira.epics` | `[EPIC]`, or empty | Tickets whose branches the Epic tab follows, in the order shown; managed from the tab. |
+| `jira.notifyOnNewTicket` | `true` | Ping when a ticket is filed under the epic. |
+| `jira.notifyOnStatusChange` | `true` | Ping when a ticket changes status. |
+| `jira.notifyOnAssigneeChange` | `true` | Ping when a ticket is assigned or unassigned. |
+| `jira.notifyOnComment` | `true` | Ping when someone else comments. |
+| `jira.showDoneTickets` | `false` | List finished tickets too; the ✓ in the Epic tab toggles it. |
+| `roulette.teamsGroup` | empty | GitLab group whose subgroups are the roulette's teams, such as `acme/teams`. |
+| `roulette.loadJQL` | empty | Open tickets counted per player for **Compensada**, such as `project = PROJ AND statusCategory != Done AND assignee IS NOT EMPTY`; empty keeps the odds even. |
 
-`host` and `username` are set by `install.sh` and shown read-only in the settings.
-The settings window rewrites the file, so edit it by hand only to change those two,
-then restart:
+`host`, `username`, `jira.site` and `jira.email` are set by `install.sh` and shown
+read-only in the settings; `roulette.teamsGroup` and `roulette.loadJQL` are yours to
+fill in. The settings window rewrites the file, so edit it by hand only to change
+those, then restart:
 
 ```sh
 launchctl kickstart -k "gui/$UID/app.reviewwatcher"
@@ -162,6 +289,10 @@ that file.
 
 - Log: `~/Library/Logs/reviewwatcher.log` — approvals and merges made from the
   menu bar are logged there too.
+- Roulette: `~/.local/state/reviewwatcher/ruleta.json` — pool JQL, absentees,
+  Jira users and the log of assignments.
+- Epic state: `~/.local/state/reviewwatcher/epic.json` — the last status,
+  assignee and comment seen on each ticket, per followed epic.
 - Seen state: `~/.local/state/reviewwatcher/seen.json` — delete it to re-announce
   everything currently open.
 
