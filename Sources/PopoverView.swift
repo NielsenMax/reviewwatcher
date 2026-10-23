@@ -5,6 +5,7 @@ final class PopoverTabs: ObservableObject {
     enum Tab {
         case reviews
         case epic
+        case argo
     }
 
     @Published var selection = Tab.reviews
@@ -14,6 +15,7 @@ struct PopoverView: View {
     @ObservedObject var tabs: PopoverTabs
     let reviews: ReviewListView
     let epic: TicketListView
+    let argo: ArgoListView
     let openRoulette: () -> Void
 
     var body: some View {
@@ -22,6 +24,7 @@ struct PopoverView: View {
                 Picker("", selection: $tabs.selection) {
                     Text("Reviews").tag(PopoverTabs.Tab.reviews)
                     Text("Epic").tag(PopoverTabs.Tab.epic)
+                    Text("Argo").tag(PopoverTabs.Tab.argo)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -33,6 +36,7 @@ struct PopoverView: View {
             switch tabs.selection {
             case .reviews: reviews
             case .epic: epic
+            case .argo: argo
             }
         }
     }

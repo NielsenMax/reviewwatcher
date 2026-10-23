@@ -7,13 +7,15 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private let list: ReviewList
     private let tickets: TicketList
+    private let argo: ArgoList
     private let tabs = PopoverTabs()
     private var badgeUpdates: AnyCancellable?
 
-    init(list: ReviewList, tickets: TicketList, epicSearch: EpicSearch, settings: Settings,
+    init(list: ReviewList, tickets: TicketList, epicSearch: EpicSearch, argo: ArgoList, settings: Settings,
          diffWindows: DiffWindows, settingsWindow: SettingsWindow, rouletteWindow: RouletteWindow) {
         self.list = list
         self.tickets = tickets
+        self.argo = argo
         super.init()
 
         let reviews = ReviewListView(list: list, openDiff: diffWindows.show, openSettings: settingsWindow.show)
@@ -24,6 +26,7 @@ final class StatusItemController: NSObject {
             rouletteWindow.show()
         }
         let host = NSHostingController(rootView: PopoverView(tabs: tabs, reviews: reviews, epic: epic,
+                                                             argo: ArgoListView(list: argo, openSettings: settingsWindow.show),
                                                              openRoulette: openRoulette))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
@@ -60,6 +63,7 @@ final class StatusItemController: NSObject {
         }
         list.refresh()
         tickets.refresh()
+        if tabs.selection == .argo { argo.refresh() }
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }

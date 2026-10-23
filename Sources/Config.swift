@@ -85,12 +85,14 @@ enum WatcherError: LocalizedError {
     case setup(String)
     case glab(String)
     case acli(String)
+    case argocd(String)
 
     var errorDescription: String? {
         switch self {
         case .setup(let detail): return detail
         case .glab(let detail): return "glab failed: \(detail)"
         case .acli(let detail): return "acli failed: \(detail)"
+        case .argocd(let detail): return "argocd failed: \(detail)"
         }
     }
 }

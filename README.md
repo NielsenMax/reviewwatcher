@@ -11,6 +11,9 @@ An **Epic** tab in the same popover follows Jira epics through `acli`: each
 one's children and their subtasks, with a notification whenever one is added,
 changes status, is reassigned or gets a comment.
 
+An **Argo** tab lists the Argo CD applications through the `argocd` CLI and
+syncs them from the menu bar.
+
 The **Ruleta** button beside the tabs opens the ticket roulette: a casino wheel
 that deals the tickets of a Jira search out to the developers in a GitLab group's
 teams, assigning each in Jira as the ball lands.
@@ -183,6 +186,24 @@ others alone. Each read runs two searches for the tree and one more for tickets
 updated since that epic's last poll; only those, and tickets seen for the first
 time, are opened one by one to read their comments. A newly followed epic starts
 silently: its first poll only takes note of what is there.
+
+## Argo tab
+
+The tab reads the applications the current `argocd` context can see, each with
+its sync status, health, auto-sync and, when the last sync failed while the app
+is still out of sync, that sync's error. It shows the out-of-sync ones by
+default, out of sync first under **All**, and the field above narrows them to
+apps whose name, project or destination namespace holds every word typed.
+
+**Sync** asks for a second click within four seconds, then runs
+`argocd app sync <app> --async` with the app's own sync options and no prune.
+The row follows that operation every three seconds until Argo reports it
+finished, and shows the outcome or the error. 🧭 opens the app in Argo CD.
+
+Log in once with `argocd login <server> --sso --grpc-web`. Argo rotates the SSO
+refresh token each time it is used, so the tab runs one argocd command at a time
+and only while it is open or a sync it started is running; when the login
+lapses, the tab says so and a new `argocd login` brings it back.
 
 ## Ticket roulette
 
