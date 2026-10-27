@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Casino chips thrown up from the wheel when a name comes out.
+/// Casino chips thrown up when the wheel names a winner or a merge lands.
 struct ConfettiBurst: Identifiable {
     struct Chip {
         let x: CGFloat

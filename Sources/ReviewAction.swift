@@ -7,6 +7,11 @@ enum ReviewAction {
     case merge
     case approveAndMerge
 
+    struct Outcome {
+        let summary: String
+        let isMerged: Bool
+    }
+
     var title: String {
         switch self {
         case .approve: return "Approve"
@@ -32,18 +37,18 @@ enum ReviewAction {
         }
     }
 
-    func run(on mergeRequest: MergeRequest, client: GitLabClient) throws -> String {
+    func run(on mergeRequest: MergeRequest, client: GitLabClient) throws -> Outcome {
         switch self {
         case .approve:
             try client.approve(mergeRequest)
-            return "Approved"
+            return Outcome(summary: "Approved", isMerged: false)
         case .unapprove:
             try client.unapprove(mergeRequest)
-            return "Unapproved"
+            return Outcome(summary: "Unapproved", isMerged: false)
         case .merge:
             switch try client.merge(mergeRequest) {
-            case .merged: return "Merged"
-            case .mergesWhenChecksPass: return "Merges when checks pass"
+            case .merged: return Outcome(summary: "Merged", isMerged: true)
+            case .mergesWhenChecksPass: return Outcome(summary: "Merges when checks pass", isMerged: false)
             }
         case .approveAndMerge:
             try client.approve(mergeRequest)
@@ -54,8 +59,8 @@ enum ReviewAction {
                 throw WatcherError.setup("Approved, but the merge failed: \(error.localizedDescription)")
             }
             switch outcome {
-            case .merged: return "Approved and merged"
-            case .mergesWhenChecksPass: return "Approved, merges when checks pass"
+            case .merged: return Outcome(summary: "Approved and merged", isMerged: true)
+            case .mergesWhenChecksPass: return Outcome(summary: "Approved, merges when checks pass", isMerged: false)
             }
         }
     }

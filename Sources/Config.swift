@@ -12,6 +12,7 @@ struct Config {
     var notifyOnlyWhen: NotificationGate
     var autoApproveReleases: Bool
     var autoApproveVersionBumps: Bool
+    var celebrateMerges: Bool
     var collapsedFilePatterns: [String]
     var jira: JiraConfig
     var roulette: RouletteConfig
@@ -22,7 +23,7 @@ extension Config: Codable {
         case host, username, pollIntervalSeconds
         case notifyOnNewReviewRequest, notifyOnApprovalRemoved, notifyOnPipelineFixed, notifyOnActivity
         case notifyBacklogOnFirstRun
-        case notifyOnlyWhen, autoApproveReleases, autoApproveVersionBumps, collapsedFilePatterns
+        case notifyOnlyWhen, autoApproveReleases, autoApproveVersionBumps, celebrateMerges, collapsedFilePatterns
         case jira, roulette
     }
 
@@ -41,6 +42,7 @@ extension Config: Codable {
         notifyOnlyWhen = try container.decodeIfPresent(NotificationGate.self, forKey: .notifyOnlyWhen) ?? NotificationGate()
         autoApproveReleases = try container.decodeIfPresent(Bool.self, forKey: .autoApproveReleases) ?? false
         autoApproveVersionBumps = try container.decodeIfPresent(Bool.self, forKey: .autoApproveVersionBumps) ?? false
+        celebrateMerges = try container.decodeIfPresent(Bool.self, forKey: .celebrateMerges) ?? true
         collapsedFilePatterns = try container.decodeIfPresent([String].self, forKey: .collapsedFilePatterns) ?? ["*test*", "*spec/*"]
         jira = try container.decodeIfPresent(JiraConfig.self, forKey: .jira) ?? JiraConfig()
         roulette = try container.decodeIfPresent(RouletteConfig.self, forKey: .roulette) ?? RouletteConfig()
@@ -59,6 +61,7 @@ extension Config: Codable {
         try container.encode(notifyOnlyWhen, forKey: .notifyOnlyWhen)
         try container.encode(autoApproveReleases, forKey: .autoApproveReleases)
         try container.encode(autoApproveVersionBumps, forKey: .autoApproveVersionBumps)
+        try container.encode(celebrateMerges, forKey: .celebrateMerges)
         try container.encode(collapsedFilePatterns, forKey: .collapsedFilePatterns)
         try container.encode(jira, forKey: .jira)
         try container.encode(roulette, forKey: .roulette)

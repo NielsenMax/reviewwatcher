@@ -8,9 +8,10 @@ final class ReviewList: ObservableObject {
         case failed(String)
     }
 
-    enum Progress {
+    enum Progress: Equatable {
         case working
         case done(String)
+        case merged(String)
         case failed(String)
     }
 
@@ -27,6 +28,7 @@ final class ReviewList: ObservableObject {
 
     /// Assigned once the poller exists, since the poller is built around this list.
     var refresh: () -> Void = {}
+    var celebrate: (MergeRequest) -> Void = { _ in }
 
     init(username: String, client: GitLabClient) {
         self.username = username
@@ -81,9 +83,14 @@ final class ReviewList: ObservableObject {
             let outcome = Result { try action.run(on: mergeRequest, client: client) }
             DispatchQueue.main.async {
                 switch outcome {
-                case .success(let summary):
-                    Log.write("\(summary): \(mergeRequest.label)")
-                    self.progress[mergeRequest.key] = .done(summary)
+                case .success(let outcome):
+                    Log.write("\(outcome.summary): \(mergeRequest.label)")
+                    if outcome.isMerged {
+                        self.progress[mergeRequest.key] = .merged(outcome.summary)
+                        self.celebrate(mergeRequest)
+                    } else {
+                        self.progress[mergeRequest.key] = .done(outcome.summary)
+                    }
                 case .failure(let error):
                     Log.write("\(action.title) failed for \(mergeRequest.label): \(error.localizedDescription)")
                     self.progress[mergeRequest.key] = .failed(error.localizedDescription)

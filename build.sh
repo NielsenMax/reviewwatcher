@@ -55,6 +55,7 @@ rm -f "$STATUS_SVG"
 # Menu bar glyph: black on clear, so AppKit can tint it as a template for light and dark bars.
 rsvg-convert -w 24 -h 18 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/menubar.png"
 rsvg-convert -w 48 -h 36 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/menubar@2x.png"
+rsvg-convert -w 1200 -h 900 "$ROOT/Resources/menubar.svg" -o "$APP/Contents/Resources/bull.png"
 
 swiftc -O \
     -target arm64-apple-macos13.0 \

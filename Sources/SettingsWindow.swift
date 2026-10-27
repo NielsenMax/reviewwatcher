@@ -99,6 +99,15 @@ private struct SettingsView: View {
             }
 
             Section {
+                Toggle("Celebrate on screen", isOn: $settings.config.celebrateMerges)
+            } header: {
+                Text("When a merge from the menu bar lands")
+            } footer: {
+                Text("A gilded bull charges across the screen in use, with a bellow. Clicks go through it.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 TextEditor(text: $settings.collapsedPatternsText)
                     .font(.system(size: 12, design: .monospaced))
                     .frame(height: 64)
