@@ -4,17 +4,19 @@ import SwiftUI
 /// Plays the celebration over the screen in use, above every window and space, letting every click through.
 /// Main queue only.
 final class MergeCelebration {
+    var isEnabled: Bool
     private let art: CelebrationScene.Art?
     private var panel: NSPanel?
     private var dismissal: DispatchWorkItem?
 
-    init() {
+    init(isEnabled: Bool) {
+        self.isEnabled = isEnabled
         art = Bundle.main.image(forResource: "bull").flatMap(CelebrationScene.Art.init(bull:))
         if art == nil { Log.write("merge celebration disabled: bull.png is missing from the app bundle") }
     }
 
     func play(for mergeRequest: MergeRequest) {
-        guard let art, let screen = NSScreen.main else { return }
+        guard isEnabled, let art, let screen = NSScreen.main else { return }
         dismiss()
         let scene = CelebrationScene(size: screen.frame.size, art: art, label: mergeRequest.label, title: mergeRequest.title,
                                      isStill: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)

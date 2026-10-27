@@ -106,7 +106,8 @@ and where it passes the middle a shockwave throws casino chips and gold leaf
 under the merge request's name. It lasts under four seconds and every click
 goes through to the windows beneath. In the popover the row turns green and
 slides out once GitLab drops it. With Reduce motion on nothing moves: the name
-fades in and out, and the bellow still sounds.
+fades in and out, and the bellow still sounds. A switch in the settings turns
+the celebration off.
 
 Approve and Merge pin the commit the list was loaded at. If the author pushes after
 that, GitLab rejects the action and the row shows the error; the next refresh
@@ -252,8 +253,8 @@ absentees and Jira mapping.
 ## Configuration
 
 The gear in the popover opens the settings: polling interval, which events
-notify, the conditions above, auto-approval, and the diff window's collapse
-patterns. Changes apply at once and are saved to
+notify, the conditions above, auto-approval, the merge celebration, and the diff
+window's collapse patterns. Changes apply at once and are saved to
 `~/.config/reviewwatcher/config.json`:
 
 | Key | Default | Meaning |
@@ -271,6 +272,7 @@ patterns. Changes apply at once and are saved to
 | `notifyOnlyWhen.notDraft` | `false` | Hold drafts. |
 | `autoApproveReleases` | `false` | Approve releases from `develop`; see [Auto-approval](#auto-approval). |
 | `autoApproveVersionBumps` | `false` | Approve merge requests that only bump image tags. |
+| `celebrateMerges` | `true` | Play the bull across the screen when a merge from the menu bar lands; the settings toggle it. |
 | `collapsedFilePatterns` | `["*test*", "*spec/*"]` | Files the diff window opens collapsed; see [Diff window](#diff-window). |
 | `jira.site` | from `acli jira auth status` | Jira Cloud site the ticket links point at. |
 | `jira.email` | from `acli jira auth status` | Who "you" is, for assignments and your own comments. |

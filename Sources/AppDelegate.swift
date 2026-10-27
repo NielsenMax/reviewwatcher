@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             let list = ReviewList(username: config.username, client: client)
             let poller = ReviewPoller(config: config, client: client, notifier: notifier, list: list)
             list.refresh = { [weak poller] in poller?.refresh() }
-            let celebration = MergeCelebration()
+            let celebration = MergeCelebration(isEnabled: config.celebrateMerges)
             list.celebrate = { celebration.play(for: $0) }
 
             let jiraClient = JiraClient()
@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             let settings = Settings(config: config) { [weak poller, weak epicPoller] in
                 poller?.apply($0)
                 epicPoller?.apply($0)
+                celebration.isEnabled = $0.celebrateMerges
             }
             statusItem = StatusItemController(list: list,
                                               tickets: tickets,
