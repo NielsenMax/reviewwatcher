@@ -93,6 +93,7 @@ Clicking it refreshes and opens the list:
 | **Approve** | Approves. Shown while you have not approved yet. |
 | **Unapprove** | Revokes your approval. Shown once you have approved. |
 | **Merge** | Merges, or turns on auto-merge when a check is still pending. Asks for a second click within four seconds. |
+| **Approve & merge** | Takes the place of **Merge** while your approval is missing: approves, then merges. GitLab's auto-merge waits on approvals too, so a plain merge would sit until you approved. |
 
 **Merge** shows only when nothing but approvals or a running check blocks the
 merge request: drafts, conflicts, unresolved threads and a failed pipeline the
