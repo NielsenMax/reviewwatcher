@@ -131,7 +131,7 @@ final class RouletteSound {
 }
 
 /// The RBJ cookbook band-pass, constant 0 dB peak gain, matching WebAudio's BiquadFilterNode "bandpass".
-private struct BandPass {
+struct BandPass {
     private let b0, b2, a1, a2: Double
     private var x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0
 
