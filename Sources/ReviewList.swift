@@ -57,13 +57,14 @@ final class ReviewList: ObservableObject {
     }
 
     func actions(for mergeRequest: MergeRequest) -> [ReviewAction] {
-        [ReviewAction.approve, .unapprove, .merge].filter { $0.isAvailable(on: mergeRequest, reviewer: username) }
+        [ReviewAction.approve, .unapprove, .merge, .approveAndMerge]
+            .filter { $0.isAvailable(on: mergeRequest, reviewer: username) }
     }
 
     /// Merging is armed by the first click and fired by the second, so a list reshuffled by a refresh cannot merge the wrong row.
     func trigger(_ action: ReviewAction, on mergeRequest: MergeRequest) {
         disarm?.cancel()
-        if action == .merge, armedKey != mergeRequest.key {
+        if action.isMerge, armedKey != mergeRequest.key {
             armedKey = mergeRequest.key
             let disarm = DispatchWorkItem { [weak self] in self?.armedKey = nil }
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.armedSeconds, execute: disarm)

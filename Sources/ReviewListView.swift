@@ -150,7 +150,7 @@ struct ReviewActionButtons: View {
         case .approve, .unapprove:
             Button(action.title) { list.trigger(action, on: mergeRequest) }
                 .controlSize(.small)
-        case .merge:
+        case .merge, .approveAndMerge:
             let isArmed = list.armedKey == mergeRequest.key
             Button(isArmed ? "Confirm merge" : action.title) { list.trigger(action, on: mergeRequest) }
                 .buttonStyle(.borderedProminent)
