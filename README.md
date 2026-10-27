@@ -100,6 +100,14 @@ merge request: drafts, conflicts, unresolved threads and a failed pipeline the
 project requires to pass go through GitLab. It uses the merge request's own
 squash and branch-deletion settings.
 
+A merge that lands at once is celebrated on the screen in use, popover open or
+not: the room dims to felt green, a gilded bull charges across with a bellow,
+and where it passes the middle a shockwave throws casino chips and gold leaf
+under the merge request's name. It lasts under four seconds and every click
+goes through to the windows beneath. In the popover the row turns green and
+slides out once GitLab drops it. With Reduce motion on nothing moves: the name
+fades in and out, and the bellow still sounds.
+
 Approve and Merge pin the commit the list was loaded at. If the author pushes after
 that, GitLab rejects the action and the row shows the error; the next refresh
 shows the new state.

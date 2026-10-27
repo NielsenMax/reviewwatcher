@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             let list = ReviewList(username: config.username, client: client)
             let poller = ReviewPoller(config: config, client: client, notifier: notifier, list: list)
             list.refresh = { [weak poller] in poller?.refresh() }
+            let celebration = MergeCelebration()
+            list.celebrate = { celebration.play(for: $0) }
 
             let jiraClient = JiraClient()
             let tickets = TicketList(email: config.jira.email, client: jiraClient)

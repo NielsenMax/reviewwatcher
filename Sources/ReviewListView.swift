@@ -4,6 +4,7 @@ struct ReviewListView: View {
     @ObservedObject var list: ReviewList
     let openDiff: (MergeRequest) -> Void
     let openSettings: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let maxRowsHeight: CGFloat = 520
 
@@ -68,12 +69,17 @@ struct ReviewListView: View {
     private var rows: some View {
         VStack(spacing: 0) {
             ForEach(list.mergeRequests) { mergeRequest in
-                ReviewRow(mergeRequest: mergeRequest, list: list, openDiff: openDiff)
-                if mergeRequest.id != list.mergeRequests.last?.id {
-                    Divider().padding(.leading, 14)
+                VStack(spacing: 0) {
+                    ReviewRow(mergeRequest: mergeRequest, list: list, openDiff: openDiff)
+                    if mergeRequest.id != list.mergeRequests.last?.id {
+                        Divider().padding(.leading, 14)
+                    }
                 }
+                .transition(.asymmetric(insertion: .opacity,
+                                        removal: .move(edge: .trailing).combined(with: .opacity)))
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: list.mergeRequests.map(\.id))
     }
 }
 
@@ -118,6 +124,13 @@ private struct ReviewRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .background(Color.green.opacity(isMerged ? 0.14 : 0))
+        .animation(.easeOut(duration: 0.3), value: isMerged)
+    }
+
+    private var isMerged: Bool {
+        if case .merged = list.progress[mergeRequest.key] { return true }
+        return false
     }
 
     private func openInBrowser() {
@@ -129,19 +142,30 @@ struct ReviewActionButtons: View {
     let mergeRequest: MergeRequest
     @ObservedObject var list: ReviewList
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        switch list.progress[mergeRequest.key] {
-        case .working:
-            ProgressView().controlSize(.small)
-        case .done(let summary):
-            Text(summary).font(.caption).foregroundStyle(.secondary)
-        case .failed, nil:
-            HStack(spacing: 6) {
-                ForEach(list.actions(for: mergeRequest), id: \.self) { action in
-                    button(for: action)
+        Group {
+            switch list.progress[mergeRequest.key] {
+            case .working:
+                ProgressView().controlSize(.small)
+            case .done(let summary):
+                Text(summary).font(.caption).foregroundStyle(.secondary)
+            case .merged(let summary):
+                Label(summary, systemImage: "arrow.triangle.merge")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+            case .failed, nil:
+                HStack(spacing: 6) {
+                    ForEach(list.actions(for: mergeRequest), id: \.self) { action in
+                        button(for: action)
+                    }
                 }
             }
         }
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.55),
+                   value: list.progress[mergeRequest.key])
     }
 
     @ViewBuilder
