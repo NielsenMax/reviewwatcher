@@ -50,12 +50,17 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Polling") {
-                Picker("Check every", selection: $settings.config.pollInterval) {
+            Section {
+                Picker("Check epics every", selection: $settings.config.pollInterval) {
                     ForEach(intervals, id: \.self) { seconds in
                         Text(Self.describe(seconds)).tag(seconds)
                     }
                 }
+            } header: {
+                Text("Polling")
+            } footer: {
+                Text("Merge requests are checked every \(Int(ReviewPoller.interval)) seconds.")
+                    .foregroundStyle(.secondary)
             }
 
             Section("Notify me about reviews when") {
