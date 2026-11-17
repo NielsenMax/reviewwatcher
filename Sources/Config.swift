@@ -31,7 +31,7 @@ extension Config: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         host = try container.decodeIfPresent(String.self, forKey: .host) ?? "gitlab.com"
         username = try container.decode(String.self, forKey: .username)
-        // GitLab's REST quota is per-token; 30s keeps a day of polling well inside it.
+        // Paces the Epic tab only: each poll runs acli searches of a few seconds apiece, so less would run them back to back.
         let seconds = try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? 60
         pollInterval = TimeInterval(max(30, seconds))
         notifyOnNewReviewRequest = try container.decodeIfPresent(Bool.self, forKey: .notifyOnNewReviewRequest) ?? true

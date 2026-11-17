@@ -13,6 +13,10 @@ final class ReviewPoller {
     /// Heads found not to qualify under the current auto-approve settings, by merge request key.
     private var unqualifiedHeads: [String: String] = [:]
 
+    /// A review request reaches Slack and email within seconds; one GraphQL query this often keeps the menu
+    /// close behind, while `config.pollInterval` paces the far costlier Jira reads.
+    static let interval: TimeInterval = 15
+
     init(config: Config, client: GitLabClient, notifier: Notifier, list: ReviewList) {
         self.config = config
         self.client = client
@@ -26,10 +30,10 @@ final class ReviewPoller {
             guard let self else { return }
             let timer = DispatchSource.makeTimerSource(queue: queue)
             timer.setEventHandler { [weak self] in self?.poll() }
-            timer.schedule(deadline: .now(), repeating: config.pollInterval)
+            timer.schedule(deadline: .now(), repeating: Self.interval)
             self.timer = timer
             timer.resume()
-            Log.write("watching reviews for @\(config.username) on \(config.host) every \(Int(config.pollInterval))s")
+            Log.write("watching reviews for @\(config.username) on \(config.host) every \(Int(Self.interval))s")
         }
     }
 
@@ -47,7 +51,7 @@ final class ReviewPoller {
         queue.async { [weak self] in
             guard let self, let timer, isPaused else { return }
             isPaused = false
-            timer.schedule(deadline: .now(), repeating: config.pollInterval)
+            timer.schedule(deadline: .now(), repeating: Self.interval)
             timer.resume()
             Log.write("resumed: polling now")
         }
@@ -56,15 +60,11 @@ final class ReviewPoller {
     func apply(_ newConfig: Config) {
         queue.async { [weak self] in
             guard let self else { return }
-            let isNewInterval = newConfig.pollInterval != config.pollInterval
             if newConfig.autoApproveReleases != config.autoApproveReleases
                 || newConfig.autoApproveVersionBumps != config.autoApproveVersionBumps {
                 unqualifiedHeads = [:]
             }
             config = newConfig
-            guard isNewInterval, let timer, !isPaused else { return }
-            timer.schedule(deadline: .now() + newConfig.pollInterval, repeating: newConfig.pollInterval)
-            Log.write("polling every \(Int(newConfig.pollInterval))s")
         }
     }
 

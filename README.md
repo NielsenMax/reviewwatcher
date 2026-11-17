@@ -75,7 +75,7 @@ meets them, unless you approve in the meantime. A merge request without a pipeli
 pipeline condition. These conditions apply to every notification except an
 auto-approval, which always notifies.
 
-Each poll is a single GraphQL query that returns the review requests together
+Every 15 seconds a single GraphQL query returns the review requests together
 with their pipeline, diff size, approvals and merge status.
 
 ## Menu bar
@@ -252,7 +252,7 @@ absentees and Jira mapping.
 
 ## Configuration
 
-The gear in the popover opens the settings: polling interval, which events
+The gear in the popover opens the settings: how often epics are read, which events
 notify, the conditions above, auto-approval, the merge celebration, and the diff
 window's collapse patterns. Changes apply at once and are saved to
 `~/.config/reviewwatcher/config.json`:
@@ -261,7 +261,7 @@ window's collapse patterns. Changes apply at once and are saved to
 | --- | --- | --- |
 | `host` | `gitlab.com` | GitLab instance, passed to glab as `GITLAB_HOST`. |
 | `username` | from `glab api user` | Whose review requests to watch. |
-| `pollIntervalSeconds` | `60` | Clamped to a 30s minimum. |
+| `pollIntervalSeconds` | `60` | How often the Epic tab reads Jira, clamped to a 30s minimum. Merge requests are polled every 15 seconds regardless. |
 | `notifyOnNewReviewRequest` | `true` | Ping when a merge request first lists you as reviewer. |
 | `notifyOnApprovalRemoved` | `true` | Ping when new commits take away your approval, as GitLab does when the project resets approvals on push. Revoking it yourself stays quiet. |
 | `notifyOnPipelineFixed` | `true` | Ping when a review you were shown red turns green. |
